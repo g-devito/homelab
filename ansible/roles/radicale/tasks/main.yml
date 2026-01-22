@@ -1,0 +1,42 @@
+- name: Create Radicale directories on SSD
+  file:
+    path: "/opt/homelab/radicale/{{ item }}"
+    state: directory
+    mode: '0775'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  loop:
+    - config
+    - data
+
+- name: Copy Radicale config file
+  copy:
+    src: config
+    dest: /opt/homelab/radicale/config/config
+    mode: '0664'
+  notify: Restart radicale
+
+- name: Create Radicale htpasswd file with user(s)
+  community.general.htpasswd:
+    path: /opt/homelab/radicale/config/users # This is the path on the remote host
+    name: "{{ item.name }}" # Uses the 'name' key from each item in the loop
+    password: "{{ item.password }}" # Uses the 'password' key from each item in the loop
+    crypt_scheme: bcrypt # Secure encryption
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0664'
+  no_log: true # Important: Prevents the password hash from appearing in logs
+  loop: "{{ radicale_users }}" # Loops over the list of users from your vault
+  notify: Restart radicale # Will notify handler if htpasswd changes
+
+- name: Copy Radicale docker-compose file to server
+  copy:
+    src: docker-compose.yml
+    dest: /opt/homelab/radicale/compose.yaml
+    mode: '0664'
+  notify: Restart radicale
+
+- name: Ensure Radicale service is running
+  community.docker.docker_compose_v2:
+    project_src: /opt/homelab/radicale
+    state: present

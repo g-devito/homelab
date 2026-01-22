@@ -31,3 +31,8 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     state: touch
+
+- name: Install required python library for htpasswd
+  apt:
+    name: python3-passlib
+    state: present

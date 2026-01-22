@@ -1,0 +1,25 @@
+- name: Mount secondary HDD
+  mount:
+    path: "{{ mount_point }}"
+    src: "UUID={{ disk_uuid }}"
+    fstype: ext4
+    state: mounted
+
+- name: Create primary app data directory on SSD
+  file:
+    path: /opt/homelab
+    state: directory
+    mode: '0775'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Create secondary data directories on HDD
+  file:
+    path: "{{ mount_point }}/{{ item }}"
+    state: directory
+    mode: '0775'
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+  loop:
+    - backups
+    - torrents

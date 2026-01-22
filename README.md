@@ -8,6 +8,14 @@
 - [x] Refactor existing Ansible playbooks into a role-based structure (`ansible/roles/...`).
 - [ ] Deploy Portainer for Docker container management.
 - [ ] Implement an automated reverse proxy (e.g., Traefik) for `service.gionet.eu` and automatic SSL.
+- [x] Deploy Radicale service.
+
+### Security Services
+- [ ] Deploy Wazuh server
+- [ ] Deploy Wazuh agents on relevant hosts
+- [ ] Deploy ClamAV
+- [ ] Integrate FortiGate logs with Wazuh
+- [ ] Develop Ansible role for FortiGate automation
 
 ### Navidrome
 - setup navidrome container
@@ -26,9 +34,9 @@ backends:
       B2_ACCOUNT_ID: 'YOUR_ID'
       B2_ACCOUNT_KEY: 'YOUR_KEY'
 
-  local-ssd:
+  local-hdd:
     type: local
-    path: /mnt/secondary_ssd/backups
+    path: /mnt/storage/backups
 
 locations:
   # ---------------------------------------------------------
@@ -54,7 +62,7 @@ locations:
   # ---------------------------------------------------------
   homelab-local:
     from: /opt/homelab
-    to: local-ssd
+    to: local-hdd
     cron: '0 6,18 * * *' # Changed to 6:00 AM & 6:00 PM (Avoids usage hours?)
     hooks:
       before:

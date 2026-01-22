@@ -1,0 +1,4 @@
+- name: Restart radicale
+  community.docker.docker_compose_v2:
+    project_src: /opt/homelab/radicale
+    state: restarted
