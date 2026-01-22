@@ -1,0 +1,33 @@
+- name: upgrade system
+  apt:
+    upgrade: dist
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: install basic tools
+  apt:
+    name:
+      - wget
+      - curl
+      - htop
+      - git
+      - fastfetch
+    state: present
+
+- name: Set timezone
+  timezone:
+    name: Europe/Rome
+
+- name: run fastfetch at login
+  lineinfile:
+    path: "/home/{{ ansible_user }}/.bashrc"
+    line: "fastfetch"
+    state: present
+
+- name: remove MOTD
+  file:
+    path: "/home/{{ ansible_user }}/.hushlogin"
+    mode: "0600"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    state: touch
