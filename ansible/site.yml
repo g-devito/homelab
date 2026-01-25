@@ -1,5 +1,5 @@
 - name: Apply common role
-  hosts: hosts
+  hosts: homelab
   become: true
   roles:
     - common
