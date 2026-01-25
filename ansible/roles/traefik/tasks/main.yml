@@ -1,0 +1,50 @@
+- name: Create Traefik configuration directory
+  ansible.builtin.file:
+    path: /etc/traefik
+    state: directory
+    mode: '0755'
+
+- name: Create Traefik dynamic configuration directory
+  ansible.builtin.file:
+    path: /etc/traefik/dynamic_config
+    state: directory
+    mode: '0755'
+
+- name: Create Traefik logs directory
+  ansible.builtin.file:
+    path: /opt/homelab/traefik/logs
+    state: directory
+    mode: '0755'
+
+- name: Copy Traefik static configuration (traefik.yml)
+  ansible.builtin.template:
+    src: traefik.yml.j2
+    dest: /etc/traefik/traefik.yml
+    mode: '0644'
+  notify: Restart traefik
+
+- name: Create acme.json for Let's Encrypt certificates
+  ansible.builtin.file:
+    path: /etc/traefik/acme.json
+    state: touch
+    mode: '0600' # Permissions must be restricted for ACME file
+    owner: root
+    group: root
+
+- name: Create traefik-proxy network if it doesn't exist
+  community.docker.docker_network:
+    name: traefik-proxy
+    state: present
+
+- name: Template docker-compose.yml for Traefik
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /etc/traefik/docker-compose.yml
+    mode: '0644'
+  notify: Restart traefik
+
+- name: Deploy Traefik using docker-compose v2
+  community.docker.docker_compose_v2:
+    project_src: /etc/traefik
+    state: present
+  notify: Restart traefik
