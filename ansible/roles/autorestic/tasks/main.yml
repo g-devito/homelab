@@ -1,0 +1,96 @@
+- name: Install system dependencies
+  apt:
+    name: [restic, curl, bzip2]
+    state: present
+    update_cache: yes
+
+- name: Download Autorestic compressed binary
+  get_url:
+    url: https://github.com/cupcakearmy/autorestic/releases/download/v1.8.2/autorestic_1.8.2_linux_amd64.bz2
+    dest: /tmp/autorestic.bz2
+    mode: '0644'
+
+- name: Extract Autorestic binary
+  shell: "bunzip2 -c /tmp/autorestic.bz2 > /usr/local/bin/autorestic"
+  args:
+    creates: /usr/local/bin/autorestic # Only runs if the binary doesn't exist
+
+- name: Ensure Autorestic binary is executable
+  file:
+    path: /usr/local/bin/autorestic
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Create Autorestic config directory
+  file:
+    path: /etc/autorestic
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+
+- name: Deploy Autorestic Configuration
+  template:
+    src: autorestic.yml.j2
+    dest: /etc/autorestic/config.yaml
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Deploy Systemd Services and Timers
+  template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: '0644'
+  loop:
+    - autorestic-local.service
+    - autorestic-local.timer
+    - autorestic-cloud.service
+    - autorestic-cloud.timer
+  notify: reload systemd
+
+- name: Flush handlers to apply systemd changes immediately
+  meta: flush_handlers
+
+- name: Enable and Start Autorestic Timers
+  systemd:
+    name: "{{ item }}"
+    enabled: yes
+    state: started
+  loop:
+    - autorestic-local.timer
+    - autorestic-cloud.timer
+
+- name: Initialize Local Restic Backend
+  shell: "autorestic -c /etc/autorestic/config.yaml exec -b local-vault -- init"
+  register: local_init
+  become: yes
+  failed_when: 
+    - local_init.rc != 0 
+    - "'already exists' not in local_init.stdout"
+    - "'already initialized' not in local_init.stdout"
+  changed_when: "'created restic repository' in local_init.stdout"
+
+- name: Initialize Cloud Restic Backend
+  shell: "autorestic -c /etc/autorestic/config.yaml exec -b cloud-b2 -- init"
+  register: cloud_init
+  become: yes
+  failed_when: 
+    - cloud_init.rc != 0 
+    - "'already exists' not in cloud_init.stdout"
+    - "'already initialized' not in cloud_init.stdout"
+  changed_when: "'created restic repository' in cloud_init.stdout"
+
+- name: Create Restic Helper Scripts
+  template:
+    src: "{{ item.src }}"
+    dest: "/usr/local/bin/{{ item.dest }}"
+    mode: '0755' # Makes them executable
+    owner: root
+    group: root
+  loop:
+    - { src: 'rvault.j2', dest: 'rvault' }
+    - { src: 'rcloud.j2', dest: 'rcloud' }

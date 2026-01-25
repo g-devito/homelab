@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Autorestic local backup (Midnight and Noon)
+
+[Timer]
+# Runs at 12 AM and 12 PM every day
+OnCalendar=00,12:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

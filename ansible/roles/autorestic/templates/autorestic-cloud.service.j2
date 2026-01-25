@@ -1,0 +1,18 @@
+[Unit]
+Description=Autorestic Cloud Sync (B2 Immutable)
+ConditionPathIsMountPoint=/mnt/storage
+
+[Service]
+Type=oneshot
+# This is the key! We provide the password for the B2 side...
+Environment="RESTIC_PASSWORD={{ autorestic_repo_pwd }}"
+# ...and we tell Restic to use the same password for the 'from-repo' side
+Environment="RESTIC_FROM_PASSWORD={{ autorestic_repo_pwd }}"
+Environment="B2_ACCOUNT_ID={{ autorestic_b2_id }}"
+Environment="B2_ACCOUNT_KEY={{ autorestic_b2_key }}"
+
+ExecStart=/usr/local/bin/autorestic -c /etc/autorestic/config.yaml exec -b cloud-b2 -- copy --from-repo /mnt/storage/backups
+ExecStart=-/usr/local/bin/autorestic -c /etc/autorestic/config.yaml forget -b cloud-b2
+ExecStart=-/usr/local/bin/autorestic -c /etc/autorestic/config.yaml exec -b cloud-b2 -- prune --ignore-locked
+
+ExecStartPost=/usr/bin/curl -m 10 --retry 3 https://hc-ping.com/{{ autorestic_hc_cloud_uuid }}

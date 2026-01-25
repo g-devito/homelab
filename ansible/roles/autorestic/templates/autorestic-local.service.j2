@@ -1,0 +1,7 @@
+[Unit]
+Description=Autorestic Local Backup
+ConditionPathIsMountPoint=/mnt/storage
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/autorestic -c /etc/autorestic/config.yaml backup -l homelab

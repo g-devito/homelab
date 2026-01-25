@@ -1,0 +1,5 @@
+#!/bin/bash
+export RESTIC_PASSWORD='{{ autorestic_repo_pwd }}'
+export B2_ACCOUNT_ID='{{ autorestic_b2_id }}'
+export B2_ACCOUNT_KEY='{{ autorestic_b2_key }}'
+restic -r b2:{{ autorestic_b2_path }} "$@"

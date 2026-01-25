@@ -1,0 +1,32 @@
+version: 2
+
+locations:
+  homelab:
+    from: /opt/homelab
+    to:
+      - local-vault
+    hooks:
+      before:
+        - "docker compose -f /opt/homelab/radicale/docker-compose.yml stop radicale"
+      after:
+        - "docker compose -f /opt/homelab/radicale/docker-compose.yml start radicale"
+        - "curl -m 10 --retry 3 https://hc-ping.com/{{ autorestic_hc_local_uuid }}"
+    options:
+      forget:
+        keep-daily: 7
+        keep-weekly: 4
+        keep-monthly: 6
+
+backends:
+  local-vault:
+    type: local
+    path: /mnt/storage/backups
+    key: "{{ autorestic_repo_pwd }}" # <--- Added this
+
+  cloud-b2:
+    type: b2
+    path: "{{ autorestic_b2_path }}" # <--- Use the variable for the new bucket
+    key: "{{ autorestic_repo_pwd }}" # <--- Added this
+    env:
+      B2_ACCOUNT_ID: "{{ autorestic_b2_id }}"
+      B2_ACCOUNT_KEY: "{{ autorestic_b2_key }}"
