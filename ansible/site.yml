@@ -2,8 +2,8 @@
   hosts: homelab
   become: true
   roles:
-    # - common
-    # - storage
-    # - docker
-    # - radicale
+    - common
+    - storage
+    - docker
+    - radicale
     - autorestic
