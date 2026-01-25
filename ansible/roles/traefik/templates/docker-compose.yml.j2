@@ -29,7 +29,7 @@ services:
       - "traefik.http.routers.traefik-dashboard.service=api@internal"
       - "traefik.http.routers.traefik-dashboard.middlewares=traefik-auth@docker"
       # Basic auth middleware for the dashboard
-      - "traefik.http.middlewares.traefik-auth.basicauth.users=gio:$$2y$$05$$2wmaY.sZJ5EMEfD8Y5cr4.VbTW1Q4JUdnmN7v8.qRyY8f86fVfVrS"
+      - "traefik.http.middlewares.traefik-auth.basicauth.users={{ traefik_dashboard_user }}:{{ traefik_dashboard_password | password_hash('bcrypt') }}"
       # Global HTTP to HTTPS redirection (middleware)
       - "traefik.http.middlewares.redirect-https.redirectscheme.scheme=https"
       - "traefik.http.middlewares.redirect-https.redirectscheme.permanent=true"
