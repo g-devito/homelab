@@ -23,7 +23,13 @@
 ### Backup
 
 ## installation steps
-
+1. git clone git@github.com:g-devito/homelab.git
+2. cd homelab
+3. cp inventory.ini.example inventory.ini
+4. vi inventory.ini
+5. echo "ansible_vault_pwd" > .vault_pass
+6. ansible-vault edit ansible/group_vars/all/vault.yml: update ansible_become_pass
+7. ansible-playbook ansible/site.yml
 
 ## ansible
 

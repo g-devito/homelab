@@ -34,5 +34,7 @@
 
 - name: Install required python library for htpasswd
   apt:
-    name: python3-passlib
+    name: 
+      - python3-passlib
+      - python3-bcrypt
     state: present
