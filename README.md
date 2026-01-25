@@ -30,6 +30,7 @@
 5. echo "ansible_vault_pwd" > .vault_pass
 6. ansible-vault edit ansible/group_vars/all/vault.yml: update ansible_become_pass
 7. ansible-playbook ansible/site.yml
+8. rcloud restore latest --target /
 
 ## ansible
 
