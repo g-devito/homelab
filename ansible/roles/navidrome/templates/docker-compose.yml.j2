@@ -1,0 +1,28 @@
+services:
+  navidrome:
+    image: deluan/navidrome:latest
+    container_name: navidrome
+    user: "1000:1000" # Should be owner of volumes
+    ports:
+      - "4533:4533" # Internal port for Navidrome
+    restart: unless-stopped
+    environment:
+      ND_SCANSCHEDULE: 1h # Scan every hour for new music
+      ND_LOGLEVEL: info # Set log level to info
+      ND_SESSIONTIMEOUT: 24h # Extend session timeout
+    volumes:
+      - "/opt/homelab/navidrome/data:/data" # Navidrome's configuration and database on SSD
+      - "/opt/homelab/navidrome/music:/music:ro" # Your music library on SSD, mounted read-only
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.music.rule=Host(`music.gionet.eu`)"
+      - "traefik.http.routers.music.entrypoints=https"
+      - "traefik.http.routers.music.tls.certresolver=letsencrypt"
+      - "traefik.http.services.music.loadbalancer.server.port=4533"
+      - "traefik.docker.network=traefik-proxy"
+    networks:
+      - traefik-proxy
+
+networks:
+  traefik-proxy:
+    external: true
