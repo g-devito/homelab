@@ -7,5 +7,5 @@
     - docker
     - traefik
     - radicale
-    - autorestic
     - navidrome
+    - autorestic

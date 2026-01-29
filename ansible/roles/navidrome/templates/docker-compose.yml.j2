@@ -3,8 +3,6 @@ services:
     image: deluan/navidrome:latest
     container_name: navidrome
     user: "1000:1000" # Should be owner of volumes
-    ports:
-      - "4533:4533" # Internal port for Navidrome
     restart: unless-stopped
     environment:
       ND_SCANSCHEDULE: 1h # Scan every hour for new music

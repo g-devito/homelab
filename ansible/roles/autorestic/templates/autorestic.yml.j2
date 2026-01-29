@@ -7,9 +7,13 @@ locations:
       - local-vault
     hooks:
       before:
-        - "docker compose -f /opt/homelab/radicale/docker-compose.yml stop radicale"
+        - "docker compose -f /opt/homelab/radicale/docker-compose.yml stop"
+        - "docker compose -f /opt/homelab/navidrome/docker-compose.yml stop"
+        - "docker compose -f /opt/homelab/ocis/docker-compose.yml stop"
       after:
-        - "docker compose -f /opt/homelab/radicale/docker-compose.yml start radicale"
+        - "docker compose -f /opt/homelab/radicale/docker-compose.yml start"
+        - "docker compose -f /opt/homelab/navidrome/docker-compose.yml start"
+        - "docker compose -f /opt/homelab/ocis/docker-compose.yml start"
         - "curl -m 10 --retry 3 https://hc-ping.com/{{ autorestic_hc_local_uuid }}"
     options:
       forget:
