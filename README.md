@@ -1,38 +1,118 @@
-# homelab
-*full deployment of homelab via ansible and docker compose*
+# Homelab Infrastructure -- Automated Deployment
 
-## TODO
+**Production-style homelab infrastructure fully automated using Ansible
+and Docker Compose.**\
+This project demonstrates real-world DevOps, system administration, and
+infrastructure automation practices.
 
-### Architectural Goals
-- [x] Refactor existing Ansible playbooks into a role-based structure (`ansible/roles/...`).
-- [ ] Deploy Portainer for Docker container management.
-- [ ] Implement an automated reverse proxy (e.g., Traefik) for `service.gionet.eu` and automatic SSL.
-- [x] Deploy Radicale service.
+------------------------------------------------------------------------
 
-### Security Services
-- [ ] Deploy Wazuh server
-- [ ] Deploy Wazuh agents on relevant hosts
-- [ ] Deploy ClamAV
-- [ ] Integrate FortiGate logs with Wazuh
-- [ ] Develop Ansible role for FortiGate automation
+## 🚀 Overview
 
-### Navidrome
-- setup navidrome container
-- container mount in /opt/data/music for songs
+This repository contains a complete **Infrastructure as Code (IaC)**
+solution to deploy and manage a personal homelab.
 
-### Backup
+It focuses on:
 
-## installation steps
-1. git clone git@github.com:g-devito/homelab.git
-2. cd homelab
-3. cp inventory.ini.example inventory.ini
-4. vi inventory.ini
-5. echo "ansible_vault_pwd" > .vault_pass
-6. ansible-vault edit ansible/group_vars/all/vault.yml: update ansible_become_pass
-7. ansible-playbook ansible/site.yml
-8. rcloud restore latest --target /
+-   Automation
+-   Security
+-   Maintainability
+-   Scalability
+-   Clean architecture
 
-## ansible
+All services are deployed using **Ansible roles** and **Docker
+Compose**, following industry best practices.
 
+------------------------------------------------------------------------
 
-## docker compose
+## 🛠 Tech Stack
+
+-   **Ansible** -- configuration management & automation
+-   **Docker & Docker Compose** -- container orchestration
+-   **Traefik** -- reverse proxy with automatic HTTPS
+-   **Autorestic + Restic** -- encrypted backup automation
+-   **Linux** -- target platform
+
+------------------------------------------------------------------------
+
+## 📦 Services Deployed
+
+-   **Traefik** → Reverse proxy + automatic SSL certificates
+-   **OCIS (ownCloud Infinite Scale)** → Personal cloud storage
+-   **Radicale** → CalDAV / CardDAV server
+-   **Navidrome** → Music streaming server
+-   **Autorestic** → Automated backup system
+
+------------------------------------------------------------------------
+
+## 🏗 Architecture
+
+-   Modular **role-based Ansible structure**
+-   Fully automated provisioning
+-   Centralized secrets management using **Ansible Vault**
+-   Automated container orchestration
+-   Secure-by-default service exposure
+
+------------------------------------------------------------------------
+
+## 📂 Repository Structure
+
+``` text
+homelab/
+├── ansible/
+│   ├── roles/
+│   │   ├── autorestic/
+│   │   ├── docker/
+│   │   ├── navidrome/
+│   │   ├── ocis/
+│   │   ├── radicale/
+│   │   └── traefik/
+│   └── site.yml
+├── inventory.ini.example
+├── ansible.cfg
+└── README.md
+```
+
+------------------------------------------------------------------------
+
+## ⚙️ Deployment
+
+``` bash
+git clone git@github.com:g-devito/homelab.git
+cd homelab
+cp inventory.ini.example inventory.ini
+ansible-playbook ansible/site.yml
+```
+
+Secrets are managed using **Ansible Vault**.
+
+------------------------------------------------------------------------
+
+## 🔐 Security
+
+-   Encrypted secrets (Ansible Vault)
+-   TLS certificates managed automatically
+-   Minimal service exposure
+-   Planned security monitoring stack
+
+------------------------------------------------------------------------
+
+## 📈 Roadmap
+
+-   Wazuh SIEM integration
+-   Centralized logging
+-   Host-based intrusion detection
+-   Monitoring stack (Prometheus + Grafana)
+-   Kubernetes lab environment
+
+------------------------------------------------------------------------
+
+## 🎯 Why This Project
+
+This homelab is designed as a **portfolio project** to demonstrate:
+
+-   Linux system administration
+-   Infrastructure automation
+-   Docker orchestration
+-   Security-first architecture
+-   Real-world DevOps workflows
