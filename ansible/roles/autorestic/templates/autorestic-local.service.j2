@@ -5,3 +5,5 @@ ConditionPathIsMountPoint=/mnt/storage
 [Service]
 Type=oneshot
 ExecStart=/usr/local/bin/autorestic -c /etc/autorestic/config.yaml backup -l homelab
+
+ExecStartPost=/usr/bin/curl -m 10 --retry 3 https://hc-ping.com/{{ autorestic_hc_local_uuid }}

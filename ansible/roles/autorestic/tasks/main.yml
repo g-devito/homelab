@@ -13,7 +13,7 @@
 - name: Extract Autorestic binary
   shell: "bunzip2 -c /tmp/autorestic.bz2 > /usr/local/bin/autorestic"
   args:
-    creates: /usr/local/bin/autorestic # Only runs if the binary doesn't exist
+    creates: /usr/local/bin/autorestic
 
 - name: Ensure Autorestic binary is executable
   file:
@@ -88,7 +88,7 @@
   template:
     src: "{{ item.src }}"
     dest: "/usr/local/bin/{{ item.dest }}"
-    mode: '0755' # Makes them executable
+    mode: '0755'
     owner: root
     group: root
   loop:

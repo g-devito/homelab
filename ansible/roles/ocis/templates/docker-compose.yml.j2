@@ -1,0 +1,38 @@
+services:
+  ocis:
+    image: owncloud/ocis:latest
+    container_name: ocis
+    restart: unless-stopped
+    user: "1000:1000"
+    # We use a shell to check for the config and run init automatically
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if [ ! -f /var/lib/ocis/config/ocis.yaml ]; then
+          ocis init --accept-legal
+        fi
+        ocis server
+    environment:
+      OCIS_URL: "https://drive.gionet.eu"
+      OCIS_INSECURE: "true"
+      PROXY_TLS: "false"
+      # This ensures the config is stored in your persistent volume
+      OCIS_CONFIG_DIR: /var/lib/ocis/config
+      OCIS_ADMIN_PASSWORD: "{{ ocis_admin_password | default('admin') }}"
+    volumes:
+      - /opt/homelab/ocis:/var/lib/ocis
+    networks:
+      - traefik-proxy
+    labels:
+      - "backup.manage=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.ocis.rule=Host(`drive.gionet.eu`)"
+      - "traefik.http.routers.ocis.entrypoints=https"
+      - "traefik.http.routers.ocis.tls.certresolver=letsencrypt"
+      - "traefik.http.services.ocis.loadbalancer.server.port=9200"
+      - "traefik.docker.network=traefik-proxy"
+
+networks:
+  traefik-proxy:
+    external: true

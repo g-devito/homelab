@@ -12,6 +12,7 @@ services:
       - "/opt/homelab/navidrome/data:/data" # Navidrome's configuration and database on SSD
       - "/opt/homelab/navidrome/music:/music:ro" # Your music library on SSD, mounted read-only
     labels:
+      - "backup.manage=true"
       - "traefik.enable=true"
       - "traefik.http.routers.music.rule=Host(`music.gionet.eu`)"
       - "traefik.http.routers.music.entrypoints=https"

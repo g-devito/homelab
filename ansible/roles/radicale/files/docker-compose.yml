@@ -9,6 +9,7 @@ services:
       - /opt/homelab/radicale/config:/etc/radicale
       - /opt/homelab/radicale/data:/var/lib/radicale
     labels:
+      - "backup.manage=true"
       - "traefik.enable=true"
       - "traefik.http.routers.radicale.rule=Host(`calendar.gionet.eu`)"
       - "traefik.http.routers.radicale.entrypoints=https"

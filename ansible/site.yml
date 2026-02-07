@@ -2,10 +2,11 @@
   hosts: homelab
   become: true
   roles:
-    - common
-    - storage
-    - docker
-    - traefik
-    - radicale
-    - navidrome
+    # - common
+    # - storage
+    # - docker
+    # - traefik
+    # - radicale
+    # - navidrome
+    # - ocis
     - autorestic
