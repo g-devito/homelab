@@ -97,6 +97,41 @@ The `ansible/site.yml` playbook includes full bootstrap roles for a fresh Debian
 
 ------------------------------------------------------------------------
 
+## 🧪 DR Test Notes
+
+Recommended DR flow:
+
+1. Power off old VM.
+2. Boot fresh Debian VM.
+3. Set static LAN IP to `192.168.1.250`.
+4. Clone repo and run Ansible.
+5. Restore application data from backups.
+
+Networking and DNS behavior:
+
+- If the new VM keeps the same LAN IP (`192.168.1.250`) and router port forwards still point to that IP, no router changes are needed.
+- Namecheap DNS usually does not need changes if your public WAN IP is unchanged.
+- If WAN IP changed, update DNS records in Namecheap (A/AAAA or Dynamic DNS).
+
+Credentials required for DR:
+
+- Ansible Vault password (`.vault_pass` or manual vault password prompt).
+- SSH private key used by Ansible to access the host.
+- Backup credentials stored in vault (Restic password, B2 key/id, service secrets) are consumed automatically by roles/templates.
+
+Static IP automation:
+
+- Recommended approach is fixed VM MAC + DHCP reservation to `192.168.1.250`.
+- If you recreate the VM, keep the same virtual NIC MAC to receive the same reserved IP.
+
+Common DR gotchas:
+
+- `disk_uuid` must match the data disk attached to the new VM (`inventory.ini`).
+- Let's Encrypt may issue fresh certs if `acme.json` is not restored; avoid repeated failed attempts to prevent rate-limit issues.
+- First boot DNS/propagation delays can cause temporary non-200 checks on public hostnames.
+
+------------------------------------------------------------------------
+
 ## 🔐 Security
 
 -   Encrypted secrets (Ansible Vault)
