@@ -74,8 +74,7 @@ def primary_artist(artist_str: str) -> str:
     """Return only the first/main artist, stripping featured guests."""
     # Strip feat./ft./featuring/with collaborations
     artist_str = re.split(r"\s+(?:feat\.?|ft\.?|featuring|with)\s+", artist_str, flags=re.IGNORECASE)[0]
-    # Strip comma-separated additional artists (e.g. "Aurora, Pomme")
-    artist_str = artist_str.split(",")[0]
+    artist_str = re.split(r"[,;]", artist_str)[0]
     return artist_str.strip()
 
 
