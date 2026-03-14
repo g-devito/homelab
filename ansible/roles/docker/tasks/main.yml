@@ -4,8 +4,13 @@
       - ca-certificates
       - curl
       - gnupg
+      - python3-docker
     state: present
     update_cache: yes
+
+- name: Set Docker apt architecture
+  ansible.builtin.set_fact:
+    docker_apt_arch: "{{ 'amd64' if ansible_architecture in ['x86_64', 'amd64'] else 'arm64' if ansible_architecture in ['aarch64', 'arm64'] else ansible_architecture }}"
 - name: Create dir for Docker's GPG key
   file:
     path: /etc/apt/keyrings
@@ -20,7 +25,7 @@
 - name: Add Docker Repository
   copy:
     dest: /etc/apt/sources.list.d/docker.list
-    content: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian trixie stable"
+    content: "deb [arch={{ docker_apt_arch }} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
     owner: root
     group: root
     mode: '0644'

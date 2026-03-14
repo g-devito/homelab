@@ -1,0 +1,136 @@
+---
+- name: Validate required Immich secrets
+  ansible.builtin.assert:
+    that:
+      - immich_db_password is defined
+      - immich_server_hostname is defined
+    fail_msg: "Missing one or more required Immich variables. Define them in Ansible Vault."
+
+- name: Create Immich directories under /opt/homelab
+  ansible.builtin.file:
+    path: /opt/homelab/immich/{{ item }}
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - library
+    - postgres
+    - model-cache
+
+- name: Deploy Immich docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /opt/homelab/immich/docker-compose.yml
+  register: immich_compose
+
+- name: Start Immich stack
+  community.docker.docker_compose_v2:
+    project_src: /opt/homelab/immich
+    state: present
+    pull: always
+
+- name: Get Immich network map
+  ansible.builtin.command:
+    cmd: docker inspect immich-server --format '{{"{{"}}json .NetworkSettings.Networks{{"}}"}}'
+  register: immich_networks
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Resolve Immich server IP on traefik-proxy network
+  ansible.builtin.set_fact:
+    immich_server_ip: "{{ (immich_networks.stdout | from_json)['traefik-proxy'].IPAddress }}"
+  when:
+    - not ansible_check_mode
+    - immich_networks is defined
+    - (immich_networks.stdout | default('') | length) > 0
+
+- name: Read Immich maintenance status
+  ansible.builtin.uri:
+    url: "http://{{ immich_server_ip }}:2283/api/admin/maintenance/status"
+    method: GET
+    return_content: true
+    status_code: 200
+  register: immich_maintenance_status_raw
+  retries: 20
+  delay: 3
+  until: immich_maintenance_status_raw.status == 200
+  when: not ansible_check_mode
+
+- name: Parse Immich maintenance status
+  ansible.builtin.set_fact:
+    immich_maintenance_status: "{{ immich_maintenance_status_raw.content | from_json }}"
+  when:
+    - not ansible_check_mode
+    - immich_maintenance_status_raw is defined
+    - (immich_maintenance_status_raw.content | default('') | length) > 0
+
+- name: Extract Immich maintenance token from logs
+  ansible.builtin.shell: |
+    docker logs --since 30m immich-server 2>&1 | sed -n 's#.*maintenance?token=\(.*\)#\1#p' | tail -n 1
+  register: immich_maintenance_token
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - immich_maintenance_status.active | default(false)
+    - immich_maintenance_status.action | default('') == 'select_database_restore'
+  no_log: true
+
+- name: Login to Immich maintenance API with token
+  ansible.builtin.shell: |
+    curl -s -c /tmp/immich_maintenance.cookies \
+      -H 'Content-Type: application/json' \
+      -d '{"token":"{{ immich_maintenance_token.stdout | trim }}"}' \
+      "http://{{ immich_server_ip }}:2283/api/admin/maintenance/login" >/dev/null
+  register: immich_maintenance_login
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - immich_maintenance_status.active | default(false)
+    - immich_maintenance_status.action | default('') == 'select_database_restore'
+    - (immich_maintenance_token.stdout | trim) != ''
+  no_log: true
+
+- name: Exit Immich maintenance mode when restore was only selected
+  ansible.builtin.shell: |
+    curl -s -b /tmp/immich_maintenance.cookies \
+      -H 'Content-Type: application/json' \
+      -d '{"action":"end"}' \
+      "http://{{ immich_server_ip }}:2283/api/admin/maintenance" >/dev/null
+  register: immich_maintenance_end
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - immich_maintenance_status.active | default(false)
+    - immich_maintenance_status.action | default('') == 'select_database_restore'
+    - (immich_maintenance_token.stdout | trim) != ''
+  no_log: true
+
+- name: Remove temporary Immich maintenance cookie file
+  ansible.builtin.file:
+    path: /tmp/immich_maintenance.cookies
+    state: absent
+  when:
+    - not ansible_check_mode
+    - immich_maintenance_status.active | default(false)
+    - immich_maintenance_status.action | default('') == 'select_database_restore'
+    - (immich_maintenance_token.stdout | default('') | trim) != ''
+
+- name: Restart Traefik when Immich config changed or maintenance was ended
+  ansible.builtin.command:
+    cmd: docker restart traefik
+  changed_when: true
+  when:
+    - not ansible_check_mode
+    - immich_compose.changed or (immich_maintenance_end is defined and immich_maintenance_end.changed)
+
+- name: Verify Immich route is reachable through Traefik
+  ansible.builtin.shell: |
+    code=$(curl -k -s -o /dev/null -w '%{http_code}' https://127.0.0.1 -H 'Host: {{ immich_server_hostname }}')
+    echo "$code"
+  register: immich_route_check
+  changed_when: false
+  retries: 20
+  delay: 3
+  until: immich_route_check.stdout in ['200', '302']
+  when: not ansible_check_mode

@@ -1,3 +1,10 @@
+- name: Validate storage mount variables
+  ansible.builtin.assert:
+    that:
+      - disk_uuid is defined
+      - disk_uuid | length > 0
+    fail_msg: "Missing disk_uuid in inventory. Set disk_uuid for host in inventory.ini."
+
 - name: Mount secondary HDD
   mount:
     path: "{{ mount_point }}"

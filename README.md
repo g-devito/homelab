@@ -39,6 +39,7 @@ Compose**, following industry best practices.
 
 -   **Traefik** → Reverse proxy + automatic SSL certificates
 -   **Seafile** → Personal cloud storage
+-   **Immich** → Photo and video backup server
 -   **Radicale** → CalDAV / CardDAV server
 -   **Navidrome** → Music streaming server
 -   **Autorestic** → Automated backup system
@@ -64,6 +65,7 @@ homelab/
 │   │   ├── autorestic/
 │   │   ├── common/
 │   │   ├── docker/
+│   │   ├── immich/
 │   │   ├── navidrome/
 │   │   ├── radicale/
 │   │   ├── seafile/
@@ -82,11 +84,16 @@ homelab/
 ``` bash
 git clone git@github.com:g-devito/homelab.git
 cd homelab
+./setup_ansible.sh
 cp inventory.ini.example inventory.ini
+ansible-vault edit ansible/group_vars/all/vault.yml
 ansible-playbook ansible/site.yml
 ```
 
 Secrets are managed using **Ansible Vault**.
+
+The `ansible/site.yml` playbook includes full bootstrap roles for a fresh Debian VM:
+`common`, `storage`, `docker`, `traefik`, `seafile`, `immich`, `autorestic`.
 
 ------------------------------------------------------------------------
 

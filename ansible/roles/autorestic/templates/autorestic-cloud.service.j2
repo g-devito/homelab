@@ -1,6 +1,8 @@
 [Unit]
 Description=Autorestic Cloud Sync (B2 Immutable)
-ConditionPathIsMountPoint=/mnt/storage
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor=/mnt/storage
 
 [Service]
 Type=oneshot
@@ -11,6 +13,6 @@ Environment="B2_ACCOUNT_ID={{ autorestic_b2_id }}"
 Environment="B2_ACCOUNT_KEY={{ autorestic_b2_key }}"
 
 ExecStart=/usr/local/bin/autorestic -c /etc/autorestic/config.yaml exec -b cloud-b2 -- copy --from-repo /mnt/storage/backups
-ExecStart=-/usr/local/bin/autorestic -c /etc/autorestic/config.yaml exec -b cloud-b2 -- forget --prune --ignore-locked
+ExecStart=-/usr/local/bin/autorestic -c /etc/autorestic/config.yaml exec -b cloud-b2 -- forget --prune --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --keep-yearly 2
 
 ExecStartPost=/usr/bin/curl -m 10 --retry 3 https://hc-ping.com/{{ autorestic_hc_cloud_uuid }}

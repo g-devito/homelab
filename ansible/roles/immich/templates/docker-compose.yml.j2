@@ -1,0 +1,77 @@
+services:
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:release
+    container_name: immich-server
+    restart: always
+    environment:
+      - TZ=Europe/Rome
+      - DB_HOSTNAME=database
+      - DB_USERNAME=immich
+      - DB_PASSWORD={{ immich_db_password }}
+      - DB_DATABASE_NAME=immich
+      - REDIS_HOSTNAME=redis
+      - IMMICH_MACHINE_LEARNING_URL=http://immich-machine-learning:3003
+      - UPLOAD_LOCATION=/usr/src/app/upload
+    volumes:
+      - /opt/homelab/immich/library:/usr/src/app/upload
+      - /etc/localtime:/etc/localtime:ro
+    labels:
+      - "backup.manage=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.immich.rule=Host(`{{ immich_server_hostname }}`)"
+      - "traefik.http.routers.immich.entrypoints=https"
+      - "traefik.http.routers.immich.tls.certresolver=letsencrypt"
+      - "traefik.http.services.immich.loadbalancer.server.port=2283"
+      - "traefik.docker.network=traefik-proxy"
+    depends_on:
+      - redis
+      - database
+      - immich-machine-learning
+    networks:
+      - immich-internal
+      - traefik-proxy
+
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:release
+    container_name: immich-machine-learning
+    restart: always
+    environment:
+      - TZ=Europe/Rome
+    volumes:
+      - /opt/homelab/immich/model-cache:/cache
+    labels:
+      - "backup.manage=true"
+    networks:
+      - immich-internal
+
+  redis:
+    image: docker.io/valkey/valkey:9
+    container_name: immich-redis
+    restart: always
+    labels:
+      - "backup.manage=true"
+    networks:
+      - immich-internal
+
+  database:
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
+    container_name: immich-postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=immich
+      - POSTGRES_PASSWORD={{ immich_db_password }}
+      - POSTGRES_DB=immich
+      - POSTGRES_INITDB_ARGS=--data-checksums
+    shm_size: 128mb
+    volumes:
+      - /opt/homelab/immich/postgres:/var/lib/postgresql/data
+    labels:
+      - "backup.manage=true"
+    networks:
+      - immich-internal
+
+networks:
+  immich-internal:
+    driver: bridge
+  traefik-proxy:
+    external: true
