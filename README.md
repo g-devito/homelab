@@ -42,6 +42,7 @@ Compose**, following industry best practices.
 -   **Immich** → Photo and video backup server
 -   **Radicale** → CalDAV / CardDAV server
 -   **Navidrome** → Music streaming server
+-   **GetMusic** → YouTube Music downloader to Navidrome library
 -   **Autorestic** → Automated backup system
 
 ------------------------------------------------------------------------
@@ -66,6 +67,7 @@ homelab/
 │   │   ├── common/
 │   │   ├── docker/
 │   │   ├── immich/
+│   │   ├── getmusic/
 │   │   ├── navidrome/
 │   │   ├── radicale/
 │   │   ├── seafile/
@@ -92,8 +94,10 @@ ansible-playbook ansible/site.yml
 
 Secrets are managed using **Ansible Vault**.
 
+For `getmusic`, set `getmusic_basic_auth_user` and `getmusic_basic_auth_password` in vault before deployment. The UI is exposed via `https://getmusic.gionet.eu`.
+
 The `ansible/site.yml` playbook includes full bootstrap roles for a fresh Debian VM:
-`common`, `storage`, `docker`, `traefik`, `seafile`, `immich`, `autorestic`.
+`common`, `storage`, `docker`, `traefik`, `seafile`, `immich`, `navidrome`, `getmusic`, `autorestic`.
 
 ------------------------------------------------------------------------
 

@@ -9,5 +9,8 @@
     - seafile
     - immich
     # - radicale
-    # - navidrome
+    - navidrome
+    - role: getmusic
+      tags:
+        - getmusic
     - autorestic

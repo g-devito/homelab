@@ -1,0 +1,53 @@
+---
+- name: Validate required GetMusic variables
+  ansible.builtin.assert:
+    that:
+      - getmusic_server_hostname is defined
+      - getmusic_music_root is defined
+      - getmusic_basic_auth_user is defined
+      - getmusic_basic_auth_user | length > 0
+      - getmusic_basic_auth_password is defined
+      - getmusic_basic_auth_password | length > 11
+    fail_msg: "Missing required GetMusic variables. Set getmusic_basic_auth_user and getmusic_basic_auth_password in Ansible Vault."
+
+- name: Create GetMusic directories under /opt/homelab
+  ansible.builtin.file:
+    path: "/opt/homelab/getmusic/{{ item }}"
+    state: directory
+    owner: "1000"
+    group: "1000"
+    mode: "0755"
+  loop:
+    - app
+    - downloads
+
+- name: Ensure target Navidrome music root exists
+  ansible.builtin.file:
+    path: "{{ getmusic_music_root }}"
+    state: directory
+    owner: "1000"
+    group: "1000"
+    mode: "0755"
+
+- name: Deploy GetMusic app files
+  ansible.builtin.copy:
+    src: app/
+    dest: /opt/homelab/getmusic/app/
+    owner: "1000"
+    group: "1000"
+    mode: preserve
+  notify: Restart getmusic
+
+- name: Deploy GetMusic docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: /opt/homelab/getmusic/docker-compose.yml
+    owner: "1000"
+    group: "1000"
+    mode: "0644"
+  notify: Restart getmusic
+
+- name: Start GetMusic stack
+  community.docker.docker_compose_v2:
+    project_src: /opt/homelab/getmusic
+    state: present

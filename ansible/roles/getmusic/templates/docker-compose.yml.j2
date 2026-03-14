@@ -1,0 +1,32 @@
+services:
+  getmusic:
+    build:
+      context: /opt/homelab/getmusic/app
+      dockerfile: Dockerfile
+    container_name: getmusic
+    user: "1000:1000"
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Rome
+      - GETMUSIC_MUSIC_ROOT={{ getmusic_music_root }}
+      - HOME=/tmp
+      - XDG_CACHE_HOME=/tmp/.cache
+    volumes:
+      - {{ getmusic_music_root }}:{{ getmusic_music_root }}
+      - /opt/homelab/getmusic/downloads:/downloads
+    labels:
+      - "backup.manage=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.getmusic.rule=Host(`{{ getmusic_server_hostname }}`)"
+      - "traefik.http.routers.getmusic.entrypoints=https"
+      - "traefik.http.routers.getmusic.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.getmusic.middlewares=getmusic-auth@docker"
+      - "traefik.http.middlewares.getmusic-auth.basicauth.users={{ getmusic_basic_auth_user }}:{{ getmusic_basic_auth_password | password_hash('bcrypt') | replace('$', '$$') }}"
+      - "traefik.http.services.getmusic.loadbalancer.server.port=8080"
+      - "traefik.docker.network=traefik-proxy"
+    networks:
+      - traefik-proxy
+
+networks:
+  traefik-proxy:
+    external: true

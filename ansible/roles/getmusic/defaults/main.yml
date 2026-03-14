@@ -1,0 +1,5 @@
+---
+getmusic_server_hostname: getmusic.gionet.eu
+getmusic_music_root: /opt/homelab/navidrome/music
+getmusic_basic_auth_user: "getmusic"
+getmusic_basic_auth_password: "change-me-in-vault"
