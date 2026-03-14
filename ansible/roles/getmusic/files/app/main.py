@@ -2,6 +2,7 @@ import os
 # Force a writable HOME so syncedlyrics/platformdirs don't try to write to /.cache
 # (uid 1000 has no /etc/passwd entry in this image, so HOME is unset or resolves to /)
 os.environ["HOME"] = "/tmp"
+from collections import Counter
 import re
 import shlex
 import shutil
@@ -158,6 +159,42 @@ def metadata_for_search(audio_path: str) -> str:
         return fallback
 
     return f"{title} {artist}".strip() or fallback
+
+
+def metadata_search_terms(audio_path: str) -> List[str]:
+    primary = metadata_for_search(audio_path)
+    title = os.path.splitext(os.path.basename(audio_path))[0]
+
+    try:
+        ext = os.path.splitext(audio_path)[1].lower()
+        if ext == ".m4a":
+            mp4 = MP4(audio_path)
+            title = normalize_text((mp4.get("\xa9nam") or [title])[0], title)
+        elif ext == ".mp3":
+            mp3 = MP3(audio_path, ID3=ID3)
+            tags = mp3.tags
+            if tags:
+                title_frame = tags.get("TIT2")
+                if isinstance(title_frame, TIT2) and title_frame.text:
+                    title = normalize_text(title_frame.text[0], title)
+    except Exception:
+        pass
+
+    title = re.sub(r"^\d+\s*-\s*", "", title).strip()
+    variants = [primary, title]
+    if " - " in title:
+        variants.append(title.split(" - ", 1)[1].strip())
+    if "(" in title:
+        variants.append(re.sub(r"\s*\([^)]*\)", "", title).strip())
+
+    unique_terms: List[str] = []
+    seen = set()
+    for candidate in variants:
+        candidate = normalize_text(candidate, "")
+        if candidate and candidate not in seen:
+            unique_terms.append(candidate)
+            seen.add(candidate)
+    return unique_terms
 
 
 def normalize_m4a_metadata(audio_path: str) -> None:
@@ -327,6 +364,90 @@ def organize_audio_file(audio_path: str, user_music_dir: str) -> str:
     return destination
 
 
+def read_album_tuple(audio_path: str) -> Tuple[str, str, str]:
+    ext = os.path.splitext(audio_path)[1].lower()
+    album = ""
+    album_artist = ""
+    year = ""
+
+    if ext == ".m4a":
+        mp4 = MP4(audio_path)
+        album = normalize_text((mp4.get("\xa9alb") or [""])[0], "")
+        album_artist = normalize_text((mp4.get("aART") or mp4.get("\xa9ART") or [""])[0], "")
+        year = extract_year((mp4.get("\xa9day") or [""])[0])
+    elif ext == ".mp3":
+        mp3 = MP3(audio_path, ID3=ID3)
+        tags = mp3.tags or {}
+        album_frame = tags.get("TALB")
+        artist_frame = tags.get("TPE2") or tags.get("TPE1")
+        year_frame = tags.get("TDRC")
+        album = normalize_text(album_frame.text[0] if isinstance(album_frame, TALB) and album_frame.text else "", "")
+        album_artist = normalize_text(artist_frame.text[0] if isinstance(artist_frame, (TPE1, TPE2)) and artist_frame.text else "", "")
+        year = extract_year(year_frame.text[0] if isinstance(year_frame, TDRC) and year_frame.text else "")
+
+    return album, album_artist, year
+
+
+def force_album_consistency(organized_files: List[str]) -> None:
+    by_folder: Dict[str, List[str]] = {}
+    for path in organized_files:
+        ext = os.path.splitext(path)[1].lower()
+        if ext not in {".m4a", ".mp3"}:
+            continue
+        folder = os.path.dirname(path)
+        by_folder.setdefault(folder, []).append(path)
+
+    for folder, files in by_folder.items():
+        if len(files) <= 1:
+            continue
+
+        album_values: List[str] = []
+        album_artist_values: List[str] = []
+        year_values: List[str] = []
+
+        for path in files:
+            album, album_artist, year = read_album_tuple(path)
+            if album:
+                album_values.append(album)
+            if album_artist:
+                album_artist_values.append(album_artist)
+            if year:
+                year_values.append(year)
+
+        canonical_album = os.path.basename(folder).strip() or "Singles"
+        if album_values:
+            canonical_album = Counter(album_values).most_common(1)[0][0]
+
+        canonical_album_artist = ""
+        if album_artist_values:
+            canonical_album_artist = Counter(album_artist_values).most_common(1)[0][0]
+
+        canonical_year = ""
+        if year_values:
+            canonical_year = Counter(year_values).most_common(1)[0][0]
+
+        for path in files:
+            ext = os.path.splitext(path)[1].lower()
+            if ext == ".m4a":
+                audio = MP4(path)
+                audio["\xa9alb"] = [canonical_album]
+                if canonical_album_artist:
+                    audio["aART"] = [canonical_album_artist]
+                if canonical_year:
+                    audio["\xa9day"] = [canonical_year]
+                audio.save()
+            elif ext == ".mp3":
+                audio = MP3(path, ID3=ID3)
+                if audio.tags is None:
+                    audio.add_tags()
+                audio.tags.add(TALB(encoding=3, text=[canonical_album]))
+                if canonical_album_artist:
+                    audio.tags.add(TPE2(encoding=3, text=[canonical_album_artist]))
+                if canonical_year:
+                    audio.tags.add(TDRC(encoding=3, text=[canonical_year]))
+                audio.save(v2_version=3)
+
+
 def parse_lrc_synced(lyrics: str) -> List[Tuple[str, int]]:
     timed_lines: List[Tuple[str, int]] = []
     for raw_line in lyrics.splitlines():
@@ -388,6 +509,14 @@ def fetch_synced_lyrics(search_term: str) -> Optional[str]:
         return syncedlyrics.search(search_term, synced_only=True)
     except Exception:
         return None
+
+
+def fetch_best_synced_lyrics(audio_path: str) -> Tuple[Optional[str], Optional[str]]:
+    for term in metadata_search_terms(audio_path):
+        synced = fetch_synced_lyrics(term)
+        if synced:
+            return synced, term
+    return None, None
 
 
 def build_ytdlp_command(url: str, tmp_dir: str, output_format: str) -> List[str]:
@@ -478,16 +607,16 @@ def process_job(job_id: str) -> None:
                 if ext not in {".mp3", ".m4a"}:
                     continue
 
-                term = metadata_for_search(audio_path)
-                synced = fetch_synced_lyrics(term)
+                synced, term = fetch_best_synced_lyrics(audio_path)
                 if not synced:
                     with jobs_lock:
-                        job.logs.append(f"No synced lyrics found: {term}")
+                        job.logs.append(f"No synced lyrics found: {metadata_search_terms(audio_path)[0]}")
                     continue
 
                 plain = strip_lrc_timestamps(synced)
                 sidecar = write_sidecar_lrc(audio_path, synced)
                 with jobs_lock:
+                    job.logs.append(f"Lyrics matched using search term: {term}")
                     job.logs.append(f"Saved sidecar lyrics: {sidecar}")
 
                 if ext == ".mp3":
@@ -504,6 +633,10 @@ def process_job(job_id: str) -> None:
         for audio_path in downloaded:
             final_path = organize_audio_file(audio_path, user_music_dir)
             organized_files.append(final_path)
+
+        # Ensure album-level tags are consistent for all tracks in each folder,
+        # preventing media servers from splitting one album into multiple entries.
+        force_album_consistency(organized_files)
 
         with jobs_lock:
             job.downloaded_files = organized_files
