@@ -70,6 +70,15 @@ def extract_year(value: str) -> str:
     return m.group(1) if m else ""
 
 
+def primary_artist(artist_str: str) -> str:
+    """Return only the first/main artist, stripping featured guests."""
+    # Strip feat./ft./featuring/with collaborations
+    artist_str = re.split(r"\s+(?:feat\.?|ft\.?|featuring|with)\s+", artist_str, flags=re.IGNORECASE)[0]
+    # Strip comma-separated additional artists (e.g. "Aurora, Pomme")
+    artist_str = artist_str.split(",")[0]
+    return artist_str.strip()
+
+
 def parse_track_number(value: str) -> int:
     if not value:
         return 0
@@ -104,7 +113,11 @@ def extract_audio_metadata(audio_path: str) -> Tuple[str, str, str, int]:
 
     if ext == ".m4a":
         mp4 = MP4(audio_path)
-        artist = (mp4.get("\xa9ART") or mp4.get("aART") or [artist])[0] or artist
+        # Prefer album artist (aART) for folder organisation; fall back to
+        # primary artist extracted from track artist (©ART).
+        album_artist_raw = (mp4.get("aART") or [""])[0] or ""
+        track_artist_raw = (mp4.get("\xa9ART") or [""])[0] or ""
+        artist = album_artist_raw or primary_artist(track_artist_raw) or artist
         album = (mp4.get("\xa9alb") or [album])[0] or album
         title = (mp4.get("\xa9nam") or [title])[0] or title
         trkn = mp4.get("trkn") or []
@@ -114,13 +127,20 @@ def extract_audio_metadata(audio_path: str) -> Tuple[str, str, str, int]:
         mp3 = MP3(audio_path, ID3=ID3)
         tags = mp3.tags
         if tags:
-            artist_frame = tags.get("TPE1") or tags.get("TPE2")
+            # TPE2 = album artist, TPE1 = track artist
+            album_artist_frame = tags.get("TPE2")
+            track_artist_frame = tags.get("TPE1")
             album_frame = tags.get("TALB")
             title_frame = tags.get("TIT2")
             track_frame = tags.get("TRCK")
 
-            if isinstance(artist_frame, (TPE1, TPE2)) and artist_frame.text:
-                artist = artist_frame.text[0]
+            album_artist_raw = ""
+            track_artist_raw = ""
+            if isinstance(album_artist_frame, TPE2) and album_artist_frame.text:
+                album_artist_raw = album_artist_frame.text[0]
+            if isinstance(track_artist_frame, TPE1) and track_artist_frame.text:
+                track_artist_raw = track_artist_frame.text[0]
+            artist = album_artist_raw or primary_artist(track_artist_raw) or artist
             if isinstance(album_frame, TALB) and album_frame.text:
                 album = album_frame.text[0]
             if isinstance(title_frame, TIT2) and title_frame.text:
