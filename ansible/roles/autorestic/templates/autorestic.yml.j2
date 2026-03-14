@@ -7,9 +7,9 @@ locations:
       - local-vault
     hooks:
       before:
-        - "docker stop $(docker ps -q --filter label=backup.manage=true)"
+        - "ids=$(docker ps -q --filter label=backup.manage=true); [ -n \"$ids\" ] && docker stop $ids || true"
       after:
-        - "docker start $(docker ps -a -q --filter label=backup.manage=true)"
+        - "ids=$(docker ps -a -q --filter label=backup.manage=true); [ -n \"$ids\" ] && docker start $ids || true"
 
 backends:
   local-vault:

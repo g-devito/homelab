@@ -38,7 +38,7 @@ Compose**, following industry best practices.
 ## 📦 Services Deployed
 
 -   **Traefik** → Reverse proxy + automatic SSL certificates
--   **OCIS (ownCloud Infinite Scale)** → Personal cloud storage
+-   **Seafile** → Personal cloud storage
 -   **Radicale** → CalDAV / CardDAV server
 -   **Navidrome** → Music streaming server
 -   **Autorestic** → Automated backup system
@@ -62,10 +62,12 @@ homelab/
 ├── ansible/
 │   ├── roles/
 │   │   ├── autorestic/
+│   │   ├── common/
 │   │   ├── docker/
 │   │   ├── navidrome/
-│   │   ├── ocis/
 │   │   ├── radicale/
+│   │   ├── seafile/
+│   │   ├── storage/
 │   │   └── traefik/
 │   └── site.yml
 ├── inventory.ini.example

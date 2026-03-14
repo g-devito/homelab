@@ -1,0 +1,63 @@
+---
+- name: Validate required Seafile secrets
+  ansible.builtin.assert:
+    that:
+      - seafile_db_root_password is defined
+      - seafile_db_password is defined
+      - seafile_admin_password is defined
+      - seafile_admin_email is defined
+      - seafile_server_hostname is defined
+    fail_msg: "Missing one or more required Seafile variables. Define them in Ansible Vault."
+
+- name: Crea directory principali per Seafile sotto /opt/homelab
+  file:
+    path: /opt/homelab/seafile/{{ item }}
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - data
+    - db
+
+- name: Copia il docker-compose per Seafile
+  template:
+    src: docker-compose.yml.j2
+    dest: /opt/homelab/seafile/docker-compose.yml
+
+- name: Avvia il servizio Seafile
+  community.docker.docker_compose_v2:
+    project_src: /opt/homelab/seafile
+    state: present
+    pull: always
+
+- name: Wait for seahub settings file to be created by Seafile bootstrap
+  ansible.builtin.wait_for:
+    path: /opt/homelab/seafile/data/seafile/conf/seahub_settings.py
+    timeout: 180
+
+- name: Force HTTPS service URL for Seafile
+  ansible.builtin.lineinfile:
+    path: /opt/homelab/seafile/data/seafile/conf/seahub_settings.py
+    regexp: '^SERVICE_URL = '
+    line: 'SERVICE_URL = "https://{{ seafile_server_hostname }}"'
+
+- name: Force HTTPS file server root for Seafile
+  ansible.builtin.lineinfile:
+    path: /opt/homelab/seafile/data/seafile/conf/seahub_settings.py
+    regexp: '^FILE_SERVER_ROOT = '
+    line: 'FILE_SERVER_ROOT = "https://{{ seafile_server_hostname }}/seafhttp"'
+
+- name: Add reverse-proxy CSRF settings for Seafile
+  ansible.builtin.blockinfile:
+    path: /opt/homelab/seafile/data/seafile/conf/seahub_settings.py
+    marker: "# {mark} ANSIBLE MANAGED SEAFILE REVERSE PROXY"
+    block: |
+      USE_X_FORWARDED_HOST = True
+      SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+      CSRF_TRUSTED_ORIGINS = ['https://{{ seafile_server_hostname }}']
+
+- name: Restart Seafile stack after settings update
+  community.docker.docker_compose_v2:
+    project_src: /opt/homelab/seafile
+    state: restarted
