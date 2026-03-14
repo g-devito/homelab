@@ -538,6 +538,17 @@ def fetch_best_synced_lyrics(audio_path: str) -> Tuple[Optional[str], Optional[s
     return None, None
 
 
+def looks_like_ytdlp_rate_limited(output_text: str) -> bool:
+    text = (output_text or "").lower()
+    forbidden_hits = text.count("http error 403") + text.count("403: forbidden")
+    fragment_retry_hits = text.count("retrying fragment")
+    empty_file_hits = text.count("the downloaded file is empty")
+
+    # Common YouTube/CDN rate-limit pattern: repeated 403 on fragments,
+    # followed by empty-file failures.
+    return forbidden_hits >= 3 or (forbidden_hits >= 1 and (fragment_retry_hits >= 3 or empty_file_hits >= 1))
+
+
 def build_ytdlp_command(url: str, tmp_dir: str, output_format: str) -> List[str]:
     # Downloads everything into tmp_dir; intermediate .mp4/.webm stay there and are
     # cleaned up after we have collected the final audio files.
@@ -551,6 +562,13 @@ def build_ytdlp_command(url: str, tmp_dir: str, output_format: str) -> List[str]
         "--write-thumbnail",
         "--embed-thumbnail",
         "--convert-thumbnails", "jpg",
+        # Safety for CDN/rate-limit scenarios: retry a little, then fail fast
+        # instead of hanging for a long time on many fragment retries.
+        "--retries", "3",
+        "--fragment-retries", "3",
+        "--retry-sleep", "fragment:5",
+        "--abort-on-unavailable-fragments",
+        "--concurrent-fragments", "1",
         # Keep only the first artist when yt-dlp returns a comma/semicolon-separated list
         "--replace-in-metadata", "artist,album_artist", r"([^,;]+)[,;].*", r"\1",
         "-f", "bestaudio[ext=m4a]/bestaudio/best",
@@ -590,6 +608,12 @@ def process_job(job_id: str) -> None:
                 job.logs.extend(result.stderr.strip().splitlines())
 
         if result.returncode != 0:
+            combined = "\n".join(part for part in [result.stdout or "", result.stderr or ""] if part)
+            if looks_like_ytdlp_rate_limited(combined):
+                raise RuntimeError(
+                    "yt-dlp failed due to likely YouTube rate-limit/block (many HTTP 403 fragment errors). "
+                    "Pause new downloads and retry after 30-120 minutes."
+                )
             raise RuntimeError(f"yt-dlp failed with code {result.returncode}")
 
         # Collect only audio files from the tmp dir; skip .mp4/.webm intermediates,
