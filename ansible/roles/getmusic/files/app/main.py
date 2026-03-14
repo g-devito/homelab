@@ -113,10 +113,10 @@ def extract_audio_metadata(audio_path: str) -> Tuple[str, str, str, int]:
     if ext == ".m4a":
         mp4 = MP4(audio_path)
         # Prefer album artist (aART) for folder organisation; fall back to
-        # primary artist extracted from track artist (©ART).
+        # track artist (©ART). Always strip guest artists from both.
         album_artist_raw = (mp4.get("aART") or [""])[0] or ""
         track_artist_raw = (mp4.get("\xa9ART") or [""])[0] or ""
-        artist = album_artist_raw or primary_artist(track_artist_raw) or artist
+        artist = primary_artist(album_artist_raw) or primary_artist(track_artist_raw) or artist
         album = (mp4.get("\xa9alb") or [album])[0] or album
         title = (mp4.get("\xa9nam") or [title])[0] or title
         trkn = mp4.get("trkn") or []
@@ -139,7 +139,7 @@ def extract_audio_metadata(audio_path: str) -> Tuple[str, str, str, int]:
                 album_artist_raw = album_artist_frame.text[0]
             if isinstance(track_artist_frame, TPE1) and track_artist_frame.text:
                 track_artist_raw = track_artist_frame.text[0]
-            artist = album_artist_raw or primary_artist(track_artist_raw) or artist
+            artist = primary_artist(album_artist_raw) or primary_artist(track_artist_raw) or artist
             if isinstance(album_frame, TALB) and album_frame.text:
                 album = album_frame.text[0]
             if isinstance(title_frame, TIT2) and title_frame.text:
@@ -551,6 +551,8 @@ def build_ytdlp_command(url: str, tmp_dir: str, output_format: str) -> List[str]
         "--write-thumbnail",
         "--embed-thumbnail",
         "--convert-thumbnails", "jpg",
+        # Keep only the first artist when yt-dlp returns a comma/semicolon-separated list
+        "--replace-in-metadata", "artist,album_artist", r"([^,;]+)[,;].*", r"\1",
         "-f", "bestaudio[ext=m4a]/bestaudio/best",
         "-x", "--audio-format", output_format, "--audio-quality", "0",
         "-P", tmp_dir,
