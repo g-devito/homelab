@@ -24,5 +24,7 @@ certificatesResolvers:
     acme:
       email: "{{ traefik_acme_email }}" # Your email for Let's Encrypt notifications
       storage: "/etc/traefik/acme.json"
+      # Per debug/test (decommentare per usare lo staging):
+      # caServer: https://acme-staging-v02.api.letsencrypt.org/directory
       httpChallenge:
         entryPoint: http
