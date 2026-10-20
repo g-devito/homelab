@@ -11,7 +11,8 @@ services:
       - {{ jellyfin_data_dir }}/config:/config
       - {{ jellyfin_data_dir }}/cache:/cache
       # Media stays read-only: Jellyfin never changes the files on the disk.
-      - {{ jellyfin_media_dir }}:/media:ro
+      # rslave: a disk (re)mounted after the container started still shows up here.
+      - {{ jellyfin_media_dir }}:/media:ro,rslave
     # Home use only: published on the LAN address, not routed through Traefik.
     ports:
       - "{{ jellyfin_lan_bind }}:8096"
