@@ -1,0 +1,19 @@
+[Unit]
+Description=Beszel agent (metrics for the Beszel hub)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=beszel
+Environment=LISTEN={{ ansible_host }}:{{ beszel_agent_port }}
+Environment="KEY={{ beszel_hub_key }}"
+ExecStart=/usr/local/bin/beszel-agent
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+StateDirectory=beszel-agent
+
+[Install]
+WantedBy=multi-user.target

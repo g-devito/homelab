@@ -21,3 +21,15 @@
     - { role: jellyfin, tags: [jellyfin] }
     - { role: arr_stack, tags: [arr_stack] }
     - { role: autorestic, tags: [autorestic] }
+
+# Separate plays: the Proxmox agent needs the key the hub generates on the VM.
+- name: Monitoring hub
+  hosts: homelab
+  become: true
+  roles:
+    - { role: beszel, tags: [beszel] }
+
+- name: Monitoring agent on the hypervisor
+  hosts: proxmox
+  roles:
+    - { role: beszel, tags: [beszel] }
