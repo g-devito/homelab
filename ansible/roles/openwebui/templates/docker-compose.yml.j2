@@ -1,0 +1,24 @@
+services:
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:{{ openwebui_version }}
+    container_name: open-webui
+    restart: always
+    networks:
+      - traefik-proxy
+    volumes:
+      - {{ openwebui_dir }}/data:/app/backend/data
+    environment:
+      - ENABLE_OLLAMA_API=False
+      - OPENAI_API_BASE_URL={{ openwebui_openai_base_url }}
+    labels:
+      - "backup.manage=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.openwebui.rule=Host(`{{ openwebui_hostname }}`)"
+      - "traefik.http.routers.openwebui.entrypoints=https"
+      - "traefik.http.routers.openwebui.tls.certresolver=letsencrypt"
+      - "traefik.http.services.openwebui.loadbalancer.server.port=8080"
+      - "traefik.docker.network=traefik-proxy"
+
+networks:
+  traefik-proxy:
+    external: true

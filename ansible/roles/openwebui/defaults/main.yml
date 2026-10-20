@@ -1,0 +1,7 @@
+---
+openwebui_version: v0.11.0
+openwebui_dir: /opt/homelab/openwebui
+openwebui_hostname: ai.gionet.eu
+# Connections and API keys are set in the UI and stored in Open WebUI's own
+# database (under data/, which is backed up); only the initial defaults live here.
+openwebui_openai_base_url: https://openrouter.ai/api/v1

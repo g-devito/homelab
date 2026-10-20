@@ -23,7 +23,7 @@ services:
       - seafile-internal
 
   seafile:
-    image: seafileltd/seafile-mc:latest
+    image: {{ seafile_image }}
     container_name: seafile
     restart: always
     volumes:

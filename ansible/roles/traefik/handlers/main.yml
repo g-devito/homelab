@@ -1,4 +1,5 @@
 - name: Restart traefik
   community.docker.docker_compose_v2:
     project_src: /etc/traefik
-    state: present
+    # The static config is a bind-mounted file: a change needs a real restart.
+    state: restarted

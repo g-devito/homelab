@@ -1,11 +1,8 @@
-- name: upgrade system
-  apt:
-    upgrade: dist
-    update_cache: true
-    cache_valid_time: 3600
-
-- name: install basic tools
-  apt:
+---
+# Security updates are applied daily by unattended-upgrades. A full upgrade on
+# every playbook run made each run an unplanned maintenance window.
+- name: Install basic tools
+  ansible.builtin.apt:
     name:
       - wget
       - curl
@@ -14,29 +11,65 @@
       - vim
       - fastfetch
       - qemu-guest-agent
+      - unattended-upgrades
+      - python3-passlib
+      - python3-bcrypt
     state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Enable daily security updates
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      // Managed by Ansible
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+    mode: "0644"
+
+# Mail root (the alert address) only when an upgrade fails.
+- name: Report unattended-upgrades only on errors
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/52unattended-upgrades-local
+    content: |
+      // Managed by Ansible
+      Unattended-Upgrade::Mail "root";
+      Unattended-Upgrade::MailReport "only-on-error";
+      Unattended-Upgrade::Automatic-Reboot "false";
+    mode: "0644"
 
 - name: Set timezone
-  timezone:
+  community.general.timezone:
     name: Europe/Rome
 
-- name: run fastfetch at login
-  lineinfile:
+- name: Run fastfetch at login
+  ansible.builtin.lineinfile:
     path: "/home/{{ ansible_user }}/.bashrc"
     line: "fastfetch"
     state: present
 
-- name: remove MOTD
-  file:
+- name: Remove MOTD
+  ansible.builtin.file:
     path: "/home/{{ ansible_user }}/.hushlogin"
     mode: "0600"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     state: touch
+    access_time: preserve
+    modification_time: preserve
 
-- name: Install required python library for htpasswd
-  apt:
-    name:
-      - python3-passlib
-      - python3-bcrypt
-    state: present
+# Leftovers from earlier hand-made setups.
+- name: Remove the dead Nextcloud backup cron job
+  ansible.builtin.lineinfile:
+    path: /var/spool/cron/crontabs/root
+    regexp: 'nextcloud-aio/backup-to-b2\.sh'
+    state: absent
+
+- name: Remove empty leftover directories and backups of old files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /opt/homelab/readarr
+    - /opt/homelab/scripts
+    - /opt/homelab/arr-stack/docker-compose.yml.bak

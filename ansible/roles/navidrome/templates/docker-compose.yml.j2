@@ -1,6 +1,6 @@
 services:
   navidrome:
-    image: deluan/navidrome:latest
+    image: deluan/navidrome:{{ navidrome_version }}
     container_name: navidrome
     user: "1000:1000" # Should be owner of volumes
     restart: unless-stopped
