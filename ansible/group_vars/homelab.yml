@@ -1,2 +1,6 @@
 ---
 alerting_mail_relay: false
+
+# Verbatim USB disk with the existing media library (NTFS, label "Media").
+media_disk_uuid: DA3230C73230AA81
+media_disk_smart_id: usb-HGST_HTS_545050A7E680_001904131004-0:0

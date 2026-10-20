@@ -1,0 +1,89 @@
+---
+- name: Validate required Jellyfin secrets
+  ansible.builtin.assert:
+    that:
+      - jellyfin_admin_password is defined
+      - jellyfin_admin_password | length > 11
+    fail_msg: "Set jellyfin_admin_password (12+ chars) in Ansible Vault."
+
+- name: Create Jellyfin directories under /opt/homelab
+  ansible.builtin.file:
+    path: "{{ jellyfin_data_dir }}/{{ item }}"
+    state: directory
+    owner: "1000"
+    group: "1000"
+    mode: "0755"
+  loop:
+    - config
+    - cache
+
+- name: Deploy Jellyfin docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ jellyfin_data_dir }}/docker-compose.yml"
+    mode: "0644"
+  notify: Recreate jellyfin
+
+- name: Start Jellyfin
+  community.docker.docker_compose_v2:
+    project_src: "{{ jellyfin_data_dir }}"
+    state: present
+
+- name: Wait for Jellyfin to answer
+  ansible.builtin.uri:
+    url: "http://{{ jellyfin_lan_bind }}/System/Info/Public"
+    return_content: true
+  register: jellyfin_info
+  retries: 30
+  delay: 5
+  until: jellyfin_info.status == 200
+  check_mode: false
+
+# First start only: replace the browser setup wizard with API calls so a rebuilt
+# server comes up with the same admin account and settings.
+- name: Run the first-start setup
+  when: not (jellyfin_info.json.StartupWizardCompleted | bool)
+  block:
+    - name: Set language and metadata country
+      ansible.builtin.uri:
+        url: "http://{{ jellyfin_lan_bind }}/Startup/Configuration"
+        method: POST
+        body_format: json
+        body:
+          UICulture: "{{ jellyfin_metadata_language }}"
+          MetadataCountryCode: "{{ jellyfin_metadata_country }}"
+          PreferredMetadataLanguage: "{{ jellyfin_metadata_language }}"
+        status_code: [200, 204]
+
+    # Jellyfin creates the first user on GET; the POST then names it and sets the password.
+    - name: Prepare the first user
+      ansible.builtin.uri:
+        url: "http://{{ jellyfin_lan_bind }}/Startup/User"
+        status_code: [200, 204]
+
+    - name: Create the admin user
+      ansible.builtin.uri:
+        url: "http://{{ jellyfin_lan_bind }}/Startup/User"
+        method: POST
+        body_format: json
+        body:
+          Name: "{{ jellyfin_admin_user }}"
+          Password: "{{ jellyfin_admin_password }}"
+        status_code: [200, 204]
+      no_log: true
+
+    - name: Allow remote access (through Traefik)
+      ansible.builtin.uri:
+        url: "http://{{ jellyfin_lan_bind }}/Startup/RemoteAccess"
+        method: POST
+        body_format: json
+        body:
+          EnableRemoteAccess: true
+          EnableAutomaticPortMapping: false
+        status_code: [200, 204]
+
+    - name: Finish the setup wizard
+      ansible.builtin.uri:
+        url: "http://{{ jellyfin_lan_bind }}/Startup/Complete"
+        method: POST
+        status_code: [200, 204]

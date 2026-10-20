@@ -1,0 +1,54 @@
+---
+- name: Validate media disk variables
+  ansible.builtin.assert:
+    that:
+      - media_disk_uuid | length > 0
+      - media_disk_smart_id | length > 0
+    fail_msg: "Set media_disk_uuid and media_disk_smart_id (see lsblk -f and /dev/disk/by-id)."
+
+- name: Install SMART tools
+  ansible.builtin.apt:
+    name: smartmontools
+    state: present
+
+- name: Mount the media disk
+  ansible.posix.mount:
+    path: "{{ media_mount_point }}"
+    src: "UUID={{ media_disk_uuid }}"
+    fstype: "{{ media_disk_fstype }}"
+    opts: "{{ media_disk_options }}"
+    state: mounted
+
+- name: Watch the media disk with smartd
+  ansible.builtin.template:
+    src: smartd.conf.j2
+    dest: /etc/smartd.conf
+    mode: "0644"
+  notify: Restart smartd
+
+# Debian skips smartd inside VMs; this disk is real hardware passed through over USB.
+- name: Create smartd override directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/smartmontools.service.d
+    state: directory
+    mode: "0755"
+
+- name: Allow smartd to run inside the VM
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/smartmontools.service.d/vm.conf
+    content: |
+      [Unit]
+      ConditionVirtualization=
+    mode: "0644"
+  register: media_smartd_dropin
+
+- name: Reload systemd after the smartd override
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: media_smartd_dropin.changed
+
+- name: Enable smartd
+  ansible.builtin.systemd:
+    name: smartmontools
+    enabled: true
+    state: started

@@ -14,3 +14,5 @@ smartd_temperature: "4,45,55"
 
 # Lenovo BIOS setting via thinklmi; host must power back on after an outage.
 bios_after_power_loss: "Power On"
+
+proxmox_vm_usb: []

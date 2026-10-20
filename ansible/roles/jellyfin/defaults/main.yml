@@ -1,0 +1,10 @@
+---
+jellyfin_image: jellyfin/jellyfin:12.2
+jellyfin_server_hostname: media.gionet.eu
+jellyfin_data_dir: /opt/homelab/jellyfin
+jellyfin_media_dir: "{{ media_mount_point | default('/mnt/media') }}"
+# Also reachable on the LAN without Traefik (TVs, phones at home).
+jellyfin_lan_bind: "{{ ansible_host }}:8096"
+jellyfin_admin_user: gio
+jellyfin_metadata_language: it
+jellyfin_metadata_country: IT

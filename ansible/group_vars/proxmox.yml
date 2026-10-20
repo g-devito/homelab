@@ -2,3 +2,8 @@
 # The Proxmox host delivers mail straight to the internet and relays for the LAN.
 alerting_mail_relay: true
 alerting_root_alias: false
+
+# USB devices passed through to VMs (vmid -> qm usbN option). Matching by
+# vendor:product makes the disk follow any port it is plugged into.
+proxmox_vm_usb:
+  - { vmid: 101, slot: usb0, device: "host=18a5:0411,usb3=1" }   # Verbatim/HGST 500G media disk

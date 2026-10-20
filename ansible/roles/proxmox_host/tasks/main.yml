@@ -115,3 +115,20 @@
   when:
     - proxmox_power_loss.content is defined
     - (proxmox_power_loss.content | b64decode | trim) != bios_after_power_loss
+
+- name: Read VM configs for USB passthrough
+  ansible.builtin.command: "qm config {{ item.vmid }}"
+  register: proxmox_vm_cfg
+  changed_when: false
+  check_mode: false
+  loop: "{{ proxmox_vm_usb }}"
+  loop_control:
+    label: "{{ item.vmid }} {{ item.slot }}"
+
+- name: Pass USB devices through to VMs (hotplugged, no VM restart)
+  ansible.builtin.command: "qm set {{ item.item.vmid }} --{{ item.item.slot }} {{ item.item.device }}"
+  when: "(item.item.slot ~ ': ' ~ item.item.device) not in item.stdout_lines"
+  changed_when: true
+  loop: "{{ proxmox_vm_cfg.results }}"
+  loop_control:
+    label: "{{ item.item.vmid }} {{ item.item.slot }}"

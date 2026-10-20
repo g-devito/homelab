@@ -1,0 +1,13 @@
+---
+# External media disk (films/series). NTFS on purpose: readable on any PC if the
+# server is down. Never formatted by this role.
+media_mount_point: /mnt/media
+media_disk_uuid: ""
+media_disk_fstype: ntfs3
+media_disk_owner: 1000
+media_disk_options: "uid={{ media_disk_owner }},gid={{ media_disk_owner }},dmask=022,fmask=133,noatime,nofail,x-systemd.device-timeout=15s"
+# /dev/disk/by-id name of the whole disk, for SMART. USB bridges need -d sat.
+media_disk_smart_id: ""
+media_disk_smart_type: sat
+# Short self-test daily 02:30, long self-test Sundays 04:00. Mail on temp >= 55C.
+media_disk_smart_schedule: "(S/../.././02|L/../../7/04)"
