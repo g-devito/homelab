@@ -1,0 +1,6 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Called by upsmon with the event text in $1 and the event type in $NOTIFYTYPE.
+status=$(upsc {{ nut_ups_name }}@localhost 2>/dev/null | grep -E '^(ups.status|battery.charge|battery.runtime|input.voltage|ups.load):')
+printf '%s\n\nEvent: %s\n\n%s\n' "$1" "${NOTIFYTYPE:-TEST}" "$status" \
+    | mail -s "[UPS] ${NOTIFYTYPE:-TEST} on $(hostname): $1" root

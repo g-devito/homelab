@@ -1,0 +1,21 @@
+# {{ ansible_managed }}
+MONITOR {{ nut_ups_name }}@localhost 1 upsmon {{ nut_upsmon_password }} primary
+MINSUPPLIES 1
+# Shutting down the host also shuts down the VMs cleanly (guest agent / ACPI).
+SHUTDOWNCMD "/sbin/shutdown -h +0"
+POLLFREQ 5
+POLLFREQALERT 5
+HOSTSYNC 15
+DEADTIME 15
+FINALDELAY 5
+
+# Mail only on events that need attention.
+NOTIFYCMD /usr/local/sbin/nut-notify
+NOTIFYFLAG ONBATT    SYSLOG+EXEC
+NOTIFYFLAG ONLINE    SYSLOG+EXEC
+NOTIFYFLAG LOWBATT   SYSLOG+EXEC
+NOTIFYFLAG FSD       SYSLOG+EXEC
+NOTIFYFLAG SHUTDOWN  SYSLOG+EXEC
+NOTIFYFLAG COMMBAD   SYSLOG+EXEC
+NOTIFYFLAG NOCOMM    SYSLOG+EXEC
+NOTIFYFLAG REPLBATT  SYSLOG+EXEC

@@ -1,0 +1,117 @@
+---
+# Base configuration of the Proxmox VE host itself.
+
+- name: Disable enterprise repositories (no subscription)
+  ansible.builtin.lineinfile:
+    path: "/etc/apt/sources.list.d/{{ item }}.sources"
+    regexp: '^Enabled:'
+    line: "Enabled: no"
+  loop:
+    - pve-enterprise
+    - ceph
+  failed_when: false
+
+- name: Enable the pve-no-subscription repository
+  ansible.builtin.template:
+    src: proxmox.sources.j2
+    dest: /etc/apt/sources.list.d/proxmox.sources
+    mode: "0644"
+
+- name: Check whether the host booted in EFI mode
+  ansible.builtin.stat:
+    path: /sys/firmware/efi
+  register: proxmox_efi
+
+# Without this meta-package GRUB in the ESP is never updated, and a later
+# upgrade can leave the host unbootable.
+- name: Install EFI GRUB meta-package
+  ansible.builtin.apt:
+    name: grub-efi-amd64
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  when: proxmox_efi.stat.exists
+
+- name: Check that the EFI system partition is mounted
+  ansible.builtin.command: findmnt -n /boot/efi
+  register: proxmox_esp
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: proxmox_efi.stat.exists
+
+- name: Fail if the ESP is not mounted
+  ansible.builtin.fail:
+    msg: >-
+      /boot/efi is not mounted, so GRUB updates cannot reach the ESP.
+      Add the ESP to /etc/fstab (lsblk -f shows its vfat UUID) and mount it.
+  when: proxmox_efi.stat.exists and proxmox_esp.rc != 0
+
+- name: Install UPS and disk health tools
+  ansible.builtin.apt:
+    name:
+      - nut-server
+      - nut-client
+      - smartmontools
+    state: present
+  register: proxmox_nut_pkgs
+  notify: Reload udev for the UPS
+
+# The USB permissions from NUT's udev rules are needed before the driver starts.
+- name: Apply NUT udev rules right after first install
+  ansible.builtin.meta: flush_handlers
+
+- name: Configure NUT
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "/etc/nut/{{ item.dest }}"
+    owner: root
+    group: nut
+    mode: "0640"
+  loop:
+    - { src: nut.conf.j2, dest: nut.conf }
+    - { src: ups.conf.j2, dest: ups.conf }
+    - { src: upsd.conf.j2, dest: upsd.conf }
+    - { src: upsd.users.j2, dest: upsd.users }
+    - { src: upsmon.conf.j2, dest: upsmon.conf }
+  loop_control:
+    label: "{{ item.dest }}"
+  no_log: "{{ item.dest in ['upsd.users', 'upsmon.conf'] }}"
+  notify: Restart nut
+
+- name: Install UPS event notifier
+  ansible.builtin.template:
+    src: nut-notify.sh.j2
+    dest: /usr/local/sbin/nut-notify
+    mode: "0755"
+
+- name: Enable NUT services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - nut-server
+    - nut-monitor
+
+- name: Configure smartd self-tests and alerts
+  ansible.builtin.template:
+    src: smartd.conf.j2
+    dest: /etc/smartd.conf
+    mode: "0644"
+  notify: Restart smartd
+
+- name: Read BIOS "After Power Loss" setting
+  ansible.builtin.slurp:
+    src: /sys/class/firmware-attributes/thinklmi/attributes/After Power Loss/current_value
+  register: proxmox_power_loss
+  failed_when: false
+
+- name: Make the host power on again after a power loss
+  ansible.builtin.shell: >-
+    printf '%s' {{ bios_after_power_loss | quote }}
+    > '/sys/class/firmware-attributes/thinklmi/attributes/After Power Loss/current_value'
+  changed_when: true
+  when:
+    - proxmox_power_loss.content is defined
+    - (proxmox_power_loss.content | b64decode | trim) != bios_after_power_loss

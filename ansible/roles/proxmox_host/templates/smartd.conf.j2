@@ -1,0 +1,3 @@
+# {{ ansible_managed }}
+# Mail goes to root (-> Proxmox notifications -> alert email) only on problems.
+DEVICESCAN -d removable -a -o on -S on -n standby,q -s {{ smartd_schedule }} -W {{ smartd_temperature }} -m root -M exec /usr/share/smartmontools/smartd-runner
