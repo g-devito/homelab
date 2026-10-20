@@ -20,5 +20,4 @@
     - { role: navidrome, tags: [navidrome] }
     - { role: jellyfin, tags: [jellyfin] }
     - { role: arr_stack, tags: [arr_stack] }
-    - { role: getmusic, tags: [getmusic] }
     - { role: autorestic, tags: [autorestic] }
