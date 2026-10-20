@@ -6,13 +6,11 @@ RequiresMountsFor=/mnt/storage
 
 [Service]
 Type=oneshot
+EnvironmentFile=/etc/autorestic/env
 
-Environment="RESTIC_PASSWORD={{ autorestic_repo_pwd }}"
-Environment="RESTIC_FROM_PASSWORD={{ autorestic_repo_pwd }}"
-Environment="B2_ACCOUNT_ID={{ autorestic_b2_id }}"
-Environment="B2_ACCOUNT_KEY={{ autorestic_b2_key }}"
-
+ExecStartPre=/bin/sh -c 'pgrep -x autorestic >/dev/null || printf "running: false\n" > /etc/autorestic/.autorestic.lock.yml'
+ExecStartPre=-/usr/bin/curl -fsS -m 10 --retry 3 -o /dev/null https://hc-ping.com/{{ autorestic_hc_cloud_uuid }}/start
 ExecStart=/usr/local/bin/autorestic -c /etc/autorestic/config.yaml exec -b cloud-b2 -- copy --from-repo /mnt/storage/backups
-ExecStart=-/usr/local/bin/autorestic -c /etc/autorestic/config.yaml exec -b cloud-b2 -- forget --prune --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --keep-yearly 2
-
-ExecStartPost=/usr/bin/curl -m 10 --retry 3 https://hc-ping.com/{{ autorestic_hc_cloud_uuid }}
+ExecStart=-/usr/local/bin/autorestic -c /etc/autorestic/config.yaml exec -b cloud-b2 -- forget --prune {{ autorestic_cloud_retention }}
+ExecStartPost=/usr/bin/curl -fsS -m 10 --retry 3 -o /dev/null https://hc-ping.com/{{ autorestic_hc_cloud_uuid }}
+ExecStopPost=/bin/sh -c '[ "$$SERVICE_RESULT" = success ] || journalctl -u %n -n 40 --no-pager | curl -fsS -m 10 --retry 3 -o /dev/null --data-binary @- https://hc-ping.com/{{ autorestic_hc_cloud_uuid }}/fail'

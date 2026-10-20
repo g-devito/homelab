@@ -4,7 +4,14 @@ ConditionPathIsMountPoint=/mnt/storage
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/autorestic -c /etc/autorestic/config.yaml backup -l homelab
-ExecStart=-/usr/local/bin/autorestic -c /etc/autorestic/config.yaml exec -b local-vault -- forget --prune --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --keep-yearly 2
+EnvironmentFile=/etc/autorestic/env
 
-ExecStartPost=/usr/bin/curl -m 10 --retry 3 https://hc-ping.com/{{ autorestic_hc_local_uuid }}
+# A crash mid-backup leaves autorestic's lock at "running: true" and blocks every
+# later run. systemd already guarantees a single instance, so reset a stale lock.
+ExecStartPre=/bin/sh -c 'pgrep -x autorestic >/dev/null || printf "running: false\n" > /etc/autorestic/.autorestic.lock.yml'
+ExecStartPre=-/usr/bin/curl -fsS -m 10 --retry 3 -o /dev/null https://hc-ping.com/{{ autorestic_hc_local_uuid }}/start
+ExecStart=/usr/local/bin/autorestic -c /etc/autorestic/config.yaml backup -l homelab
+ExecStart=-/usr/local/bin/autorestic -c /etc/autorestic/config.yaml exec -b local-vault -- forget --prune {{ autorestic_local_retention }}
+ExecStartPost=/usr/bin/curl -fsS -m 10 --retry 3 -o /dev/null https://hc-ping.com/{{ autorestic_hc_local_uuid }}
+# On failure, report it right away with the last log lines instead of waiting for the grace period.
+ExecStopPost=/bin/sh -c '[ "$$SERVICE_RESULT" = success ] || journalctl -u %n -n 40 --no-pager | curl -fsS -m 10 --retry 3 -o /dev/null --data-binary @- https://hc-ping.com/{{ autorestic_hc_local_uuid }}/fail'
