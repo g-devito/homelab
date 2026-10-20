@@ -3,7 +3,7 @@
 alerting_mail_relay: true
 alerting_root_alias: false
 
-# USB devices passed through to VMs (vmid -> qm usbN option). Matching by
-# vendor:product makes the disk follow any port it is plugged into.
+# USB passthrough to VMs. Matched by physical port, so any disk plugged into
+# that port goes to the VM (rear blue USB 3 port, labelled 4 on the case).
 proxmox_vm_usb:
-  - { vmid: 101, slot: usb0, device: "host=18a5:0411,usb3=1" }   # Verbatim/HGST 500G media disk
+  - { vmid: 101, slot: usb0, device: "host=2-2,usb3=1" }   # media disk

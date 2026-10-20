@@ -6,25 +6,14 @@ services:
     restart: always
     environment:
       - TZ=Europe/Rome
-      - JELLYFIN_PublishedServerUrl=https://{{ jellyfin_server_hostname }}
+      - JELLYFIN_PublishedServerUrl=http://{{ jellyfin_lan_bind }}
     volumes:
       - {{ jellyfin_data_dir }}/config:/config
       - {{ jellyfin_data_dir }}/cache:/cache
       # Media stays read-only: Jellyfin never changes the files on the disk.
       - {{ jellyfin_media_dir }}:/media:ro
+    # Home use only: published on the LAN address, not routed through Traefik.
     ports:
       - "{{ jellyfin_lan_bind }}:8096"
     labels:
       - "backup.manage=true"
-      - "traefik.enable=true"
-      - "traefik.http.routers.jellyfin.rule=Host(`{{ jellyfin_server_hostname }}`)"
-      - "traefik.http.routers.jellyfin.entrypoints=https"
-      - "traefik.http.routers.jellyfin.tls.certresolver=letsencrypt"
-      - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
-      - "traefik.docker.network=traefik-proxy"
-    networks:
-      - traefik-proxy
-
-networks:
-  traefik-proxy:
-    external: true

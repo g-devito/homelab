@@ -1,23 +1,36 @@
 ---
-- name: Validate media disk variables
-  ansible.builtin.assert:
-    that:
-      - media_disk_uuid | length > 0
-      - media_disk_smart_id | length > 0
-    fail_msg: "Set media_disk_uuid and media_disk_smart_id (see lsblk -f and /dev/disk/by-id)."
-
 - name: Install SMART tools
   ansible.builtin.apt:
     name: smartmontools
     state: present
 
+- name: Disable UAS for known-bad USB bridges
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/media-disk-quirks.conf
+    content: |
+      # Managed by Ansible (media_storage)
+      options usb-storage quirks={{ media_disk_usb_quirks | join(',') }}
+    mode: "0644"
+  when: media_disk_usb_quirks | length > 0
+
 - name: Mount the media disk
   ansible.posix.mount:
     path: "{{ media_mount_point }}"
-    src: "UUID={{ media_disk_uuid }}"
+    src: "LABEL={{ media_disk_label }}"
     fstype: "{{ media_disk_fstype }}"
     opts: "{{ media_disk_options }}"
     state: mounted
+
+- name: Give the USB media disk a stable name
+  ansible.builtin.template:
+    src: 99-media-disk.rules.j2
+    dest: /etc/udev/rules.d/99-media-disk.rules
+    mode: "0644"
+  register: media_udev_rule
+
+- name: Apply the udev rule to the disk already plugged in
+  ansible.builtin.shell: udevadm control --reload-rules && udevadm trigger --subsystem-match=block --action=add
+  when: media_udev_rule.changed
 
 - name: Watch the media disk with smartd
   ansible.builtin.template:

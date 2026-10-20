@@ -1,0 +1,4 @@
+# {{ ansible_managed }}
+# Any USB disk on this VM is the media disk: stable name for smartd, and smartd
+# re-reads its config when a (new) disk is plugged in.
+ACTION=="add", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", SUBSYSTEMS=="usb", SYMLINK+="{{ media_disk_smart_device | basename }}", RUN+="/usr/bin/systemctl --no-block try-restart smartmontools.service"

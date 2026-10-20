@@ -1,4 +1,5 @@
 # {{ ansible_managed }}
-# Virtual disks have no SMART; only the passed-through media disk is watched.
+# Virtual disks have no SMART; only the passed-through USB media disk is watched.
+# -d removable: smartd keeps running when the disk is unplugged.
 # Mail goes to root (aliased to the alert address) only on problems.
-/dev/disk/by-id/{{ media_disk_smart_id }} -d {{ media_disk_smart_type }} -a -o on -S on -n standby,q -s {{ media_disk_smart_schedule }} -W 4,45,55 -m root -M exec /usr/share/smartmontools/smartd-runner
+{{ media_disk_smart_device }} -d removable -d {{ media_disk_smart_type }} -a -o on -S on -n standby,q -s {{ media_disk_smart_schedule }} -W 4,45,55 -m root -M exec /usr/share/smartmontools/smartd-runner

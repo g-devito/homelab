@@ -36,7 +36,8 @@
   register: jellyfin_info
   retries: 30
   delay: 5
-  until: jellyfin_info.status == 200
+  # While starting, Jellyfin answers 200 with a placeholder; wait for real server info.
+  until: jellyfin_info.status == 200 and 'StartupWizardCompleted' in (jellyfin_info.json | default({}))
   check_mode: false
 
 # First start only: replace the browser setup wizard with API calls so a rebuilt
@@ -72,7 +73,7 @@
         status_code: [200, 204]
       no_log: true
 
-    - name: Allow remote access (through Traefik)
+    - name: Allow access from other devices on the LAN
       ansible.builtin.uri:
         url: "http://{{ jellyfin_lan_bind }}/Startup/RemoteAccess"
         method: POST
@@ -87,3 +88,43 @@
         url: "http://{{ jellyfin_lan_bind }}/Startup/Complete"
         method: POST
         status_code: [200, 204]
+
+- name: Log in as the admin
+  ansible.builtin.uri:
+    url: "http://{{ jellyfin_lan_bind }}/Users/AuthenticateByName"
+    method: POST
+    headers:
+      Authorization: 'MediaBrowser Client="ansible", Device="ansible", DeviceId="ansible-{{ inventory_hostname }}", Version="1"'
+    body_format: json
+    body:
+      Username: "{{ jellyfin_admin_user }}"
+      Pw: "{{ jellyfin_admin_password }}"
+  register: jellyfin_auth
+  no_log: true
+  check_mode: false
+
+- name: Read existing libraries
+  ansible.builtin.uri:
+    url: "http://{{ jellyfin_lan_bind }}/Library/VirtualFolders"
+    headers:
+      Authorization: 'MediaBrowser Token="{{ jellyfin_auth.json.AccessToken }}"'
+  register: jellyfin_folders
+  check_mode: false
+
+- name: Create missing libraries
+  ansible.builtin.uri:
+    url: "http://{{ jellyfin_lan_bind }}/Library/VirtualFolders?name={{ item.name | urlencode }}&collectionType={{ item.type }}&paths={{ item.path | urlencode }}&refreshLibrary=true"
+    method: POST
+    headers:
+      Authorization: 'MediaBrowser Token="{{ jellyfin_auth.json.AccessToken }}"'
+    body_format: json
+    body:
+      LibraryOptions:
+        PreferredMetadataLanguage: "{{ jellyfin_metadata_language }}"
+        MetadataCountryCode: "{{ jellyfin_metadata_country }}"
+    status_code: [200, 204]
+  loop: "{{ jellyfin_libraries }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.name not in (jellyfin_folders.json | map(attribute='Name') | list)
+  changed_when: true
