@@ -3,6 +3,7 @@
 # the arr stack. Never formatted by this role. Any disk works as long as its
 # partition is labelled "Media" and it is the only USB disk on the VM.
 media_mount_point: /mnt/media
+arr_stack_media_dir: /mnt/media
 media_disk_label: Media
 media_disk_fstype: ext4
 media_disk_options: "noatime,nofail,x-systemd.device-timeout=15s"

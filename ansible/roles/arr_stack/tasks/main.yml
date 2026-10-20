@@ -9,11 +9,32 @@
   loop:
     - "{{ arr_stack_dir }}"
     - "{{ arr_stack_downloads_dir }}"
+    - "{{ arr_stack_downloads_dir }}/lidarr"
     - /opt/homelab/qbittorrent/config
     - /opt/homelab/prowlarr/config
     - /opt/homelab/lidarr/config
     - /opt/homelab/radarr/config
     - /opt/homelab/sonarr/config
+
+- name: Check that the media disk is mounted
+  ansible.builtin.command:
+    argv:
+      - mountpoint
+      - -q
+      - "{{ arr_stack_media_dir }}"
+  changed_when: false
+
+- name: Create torrent download directories on the media disk
+  ansible.builtin.file:
+    path: "{{ arr_stack_media_dir }}/torrents/{{ item }}"
+    state: directory
+    owner: "1000"
+    group: "1000"
+    mode: "0755"
+  loop:
+    - tv
+    - movies
+    - music
 
 - name: Deploy arr-stack docker-compose file
   ansible.builtin.template:
