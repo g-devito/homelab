@@ -1,0 +1,16 @@
+---
+# Start from the basic profile and tighten role by role.
+profile: basic
+offline: true
+exclude_paths:
+  - .github/
+  - ansible/group_vars/all/vault.yml
+skip_list:
+  # Style debt in the older roles, tracked to be fixed role by role.
+  - fqcn[action-core]
+  - fqcn[action]
+  - var-naming[no-role-prefix]
+  - name[casing]
+  - yaml[truthy]
+  - yaml[line-length]
+  - jinja[spacing]

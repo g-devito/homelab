@@ -77,6 +77,8 @@
   no_log: true
 
 - name: Login to Immich maintenance API with token
+  # Maintenance-mode workaround with curl + cookies; to be replaced in the drift audit.
+  tags: [skip_ansible_lint]
   ansible.builtin.shell: |
     curl -s -c /tmp/immich_maintenance.cookies \
       -H 'Content-Type: application/json' \
@@ -92,6 +94,8 @@
   no_log: true
 
 - name: Exit Immich maintenance mode when restore was only selected
+  # Maintenance-mode workaround with curl + cookies; to be replaced in the drift audit.
+  tags: [skip_ansible_lint]
   ansible.builtin.shell: |
     curl -s -b /tmp/immich_maintenance.cookies \
       -H 'Content-Type: application/json' \

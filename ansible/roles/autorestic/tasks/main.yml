@@ -73,21 +73,21 @@
     - autorestic-cloud.timer
 
 - name: Initialize Local Restic Backend
-  shell: "autorestic -c /etc/autorestic/config.yaml exec -b local-vault -- init"
+  command: "autorestic -c /etc/autorestic/config.yaml exec -b local-vault -- init"
   register: local_init
   become: yes
-  failed_when: 
-    - local_init.rc != 0 
+  failed_when:
+    - local_init.rc != 0
     - "'already exists' not in local_init.stdout"
     - "'already initialized' not in local_init.stdout"
   changed_when: "'created restic repository' in local_init.stdout"
 
 - name: Initialize Cloud Restic Backend
-  shell: "autorestic -c /etc/autorestic/config.yaml exec -b cloud-b2 -- init"
+  command: "autorestic -c /etc/autorestic/config.yaml exec -b cloud-b2 -- init"
   register: cloud_init
   become: yes
-  failed_when: 
-    - cloud_init.rc != 0 
+  failed_when:
+    - cloud_init.rc != 0
     - "'already exists' not in cloud_init.stdout"
     - "'already initialized' not in cloud_init.stdout"
   changed_when: "'created restic repository' in cloud_init.stdout"
