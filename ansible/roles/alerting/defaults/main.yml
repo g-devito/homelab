@@ -1,0 +1,8 @@
+---
+alerting_mail_relay: false
+# Proxmox forwards root mail through its own notification system
+# (/root/.forward -> proxmox-mail-forward), so only alias root elsewhere.
+alerting_root_alias: true
+# Heartbeat: the host pings healthchecks.io every 5 minutes; mail if it stops.
+alerting_heartbeat_timeout: 300
+alerting_heartbeat_grace: 600

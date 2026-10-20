@@ -1,0 +1,37 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Mails root when a filesystem or LVM thin pool is above the threshold.
+# Repeats at most once a day while the problem lasts. --test sends a test mail.
+set -euo pipefail
+
+threshold={{ disk_alert_threshold }}
+state=/var/lib/disk-alert/last-alert
+mkdir -p "$(dirname "$state")"
+
+if [ "${1:-}" = "--test" ]; then
+    echo "Test from disk-alert on $(hostname): this is how a disk space alert arrives." \
+        | mail -s "[TEST] disk-alert on $(hostname)" root
+    exit 0
+fi
+
+problems=$(
+    df -P -x tmpfs -x devtmpfs -x overlay -x squashfs -x efivarfs | awk -v t="$threshold" \
+        'NR > 1 { p = $5; sub("%", "", p); if (p + 0 >= t) printf "filesystem %s (%s) at %s%%\n", $6, $1, p }'
+    if command -v lvs >/dev/null; then
+        lvs --noheadings --separator ' ' -o vg_name,lv_name,data_percent,metadata_percent -S 'segtype=thin-pool' 2>/dev/null \
+            | awk -v t="$threshold" '{ if ($3 + 0 >= t || $4 + 0 >= t) printf "thin pool %s/%s at data %s%% / metadata %s%%\n", $1, $2, $3, $4 }'
+    fi
+)
+
+if [ -z "$problems" ]; then
+    rm -f "$state"
+    exit 0
+fi
+
+if [ -f "$state" ] && [ -z "$(find "$state" -mmin +1440)" ]; then
+    exit 0
+fi
+
+printf 'Disk usage above %s%% on %s:\n\n%s\n\n%s\n' "$threshold" "$(hostname)" "$problems" "$(df -h -x tmpfs -x devtmpfs -x overlay)" \
+    | mail -s "[ALERT] disk space on $(hostname)" root
+touch "$state"

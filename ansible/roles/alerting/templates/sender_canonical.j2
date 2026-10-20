@@ -1,0 +1,3 @@
+# {{ ansible_managed }}
+# Mail leaving the LAN is sent as <host>@{{ alert_mail_domain }}, which has an SPF record.
+/^[^@]+@({{ groups['all'] | join('|') }})(\..*)?$/	${1}@{{ alert_mail_domain }}
