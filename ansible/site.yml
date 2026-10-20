@@ -1,16 +1,21 @@
-- name: Apply common role
+- name: Proxmox host
+  hosts: proxmox
+  roles:
+    - { role: proxmox_host, tags: [proxmox] }
+    - { role: alerting, tags: [alerting] }
+
+- name: Homelab services
   hosts: homelab
   become: true
   roles:
-    - common
-    - storage
-    - docker
-    - traefik
-    - seafile
-    - immich
-    # - radicale
-    - navidrome
-    - role: getmusic
-      tags:
-        - getmusic
-    - autorestic
+    - { role: common, tags: [common] }
+    - { role: storage, tags: [storage] }
+    - { role: docker, tags: [docker] }
+    - { role: alerting, tags: [alerting] }
+    - { role: traefik, tags: [traefik] }
+    - { role: seafile, tags: [seafile] }
+    - { role: immich, tags: [immich] }
+    # - { role: radicale, tags: [radicale] }
+    - { role: navidrome, tags: [navidrome] }
+    - { role: getmusic, tags: [getmusic] }
+    - { role: autorestic, tags: [autorestic] }
