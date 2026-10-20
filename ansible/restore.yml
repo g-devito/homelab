@@ -1,0 +1,66 @@
+---
+# Restore application data from the backups onto a freshly provisioned host.
+# Run site.yml first (it installs autorestic and the rvault/rcloud helpers).
+#
+#   ansible-playbook ansible/restore.yml -e restore_confirm=yes
+#   ansible-playbook ansible/restore.yml -e restore_confirm=yes -e restore_from=local
+#   ansible-playbook ansible/restore.yml -e restore_confirm=yes -e '{"restore_include": ["/opt/homelab/radicale"]}'
+#
+# It overwrites live data, so it refuses to run without restore_confirm=yes.
+- name: Restore application data
+  hosts: homelab
+  become: true
+  vars:
+    restore_confirm: "no"
+    # cloud = Backblaze B2 (always available), local = repository on /mnt/storage
+    restore_from: cloud
+    restore_snapshot: latest
+    restore_include:
+      - /opt/homelab
+      - /etc/traefik
+  tasks:
+    - name: Refuse to run without explicit confirmation
+      ansible.builtin.assert:
+        that:
+          - restore_confirm == "yes"
+          - restore_from in ["cloud", "local"]
+        fail_msg: "This overwrites live data. Re-run with -e restore_confirm=yes (restore_from: cloud|local)."
+
+    - name: Show what will be restored
+      ansible.builtin.command: >-
+        {{ 'rcloud' if restore_from == 'cloud' else 'rvault' }}
+        snapshots --compact {{ restore_snapshot }}
+      register: restore_snapshot_info
+      changed_when: false
+
+    - name: Snapshot to restore
+      ansible.builtin.debug:
+        var: restore_snapshot_info.stdout_lines
+
+    - name: Stop the services whose data is restored
+      ansible.builtin.shell: |
+        set -o pipefail
+        docker ps -q --filter label=backup.manage=true | xargs -r docker stop
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    - name: Restore from the backup
+      ansible.builtin.command: >-
+        {{ 'rcloud' if restore_from == 'cloud' else 'rvault' }}
+        restore {{ restore_snapshot }} --target /
+        {% for path in restore_include %} --include {{ path }}{% endfor %}
+      changed_when: true
+
+    - name: Start the services again
+      ansible.builtin.shell: |
+        set -o pipefail
+        docker ps -aq --filter label=backup.manage=true | xargs -r docker start
+      args:
+        executable: /bin/bash
+      changed_when: true
+
+    - name: Restart Traefik to load restored certificates
+      ansible.builtin.command: docker restart traefik
+      changed_when: true
+      when: "'/etc/traefik' in restore_include"
