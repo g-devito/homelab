@@ -24,7 +24,7 @@
     alerting_postfix_settings: "{{ alerting_postfix_common | combine(alerting_postfix_role) }}"
   vars:
     alerting_postfix_common:
-      myhostname: "{{ ansible_facts['fqdn'] if '.' in ansible_facts['fqdn'] else inventory_hostname + '.lan' }}"
+      myhostname: "{{ ansible_facts['fqdn'] if '.' in ansible_facts['fqdn'] else inventory_hostname + '.' + mail_local_domain }}"
       myorigin: "$myhostname"
       mydestination: "$myhostname, localhost.$mydomain, localhost"
     alerting_postfix_role: >-
@@ -34,7 +34,7 @@
           'mynetworks': mail_relay_networks,
           'relayhost': '',
           'smtp_helo_name': alert_helo_name,
-          'sender_canonical_maps': 'regexp:/etc/postfix/sender_canonical',
+          'sender_canonical_maps': 'regexp:/etc/postfix/sender_canonical' if alert_mail_domain | length > 0 else '',
           'smtp_tls_security_level': 'may',
         }
         if alerting_mail_relay else
@@ -50,7 +50,7 @@
     src: sender_canonical.j2
     dest: /etc/postfix/sender_canonical
     mode: "0644"
-  when: alerting_mail_relay
+  when: alerting_mail_relay and alert_mail_domain | length > 0
   notify: Reload postfix
 
 - name: Configure postfix
