@@ -86,6 +86,19 @@
   when: alerting_root_alias
   notify: Rebuild aliases
 
+- name: Check for apt-listchanges
+  ansible.builtin.stat:
+    path: /etc/apt/listchanges.conf
+  register: alerting_listchanges
+
+# Package news after unattended upgrades is not a problem worth a mail.
+- name: Stop apt-listchanges from mailing package news
+  ansible.builtin.lineinfile:
+    path: /etc/apt/listchanges.conf
+    regexp: '^email_address='
+    line: email_address=none
+  when: alerting_listchanges.stat.exists
+
 - name: Install disk space check
   ansible.builtin.template:
     src: disk-alert.sh.j2
