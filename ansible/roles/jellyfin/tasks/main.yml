@@ -51,7 +51,7 @@
         method: POST
         body_format: json
         body:
-          UICulture: "{{ jellyfin_metadata_language }}"
+          UICulture: "{{ jellyfin_ui_culture }}"
           MetadataCountryCode: "{{ jellyfin_metadata_country }}"
           PreferredMetadataLanguage: "{{ jellyfin_metadata_language }}"
         status_code: [200, 204]
@@ -130,8 +130,9 @@
   when: item.name not in (jellyfin_folders.json | map(attribute='Name') | list)
   changed_when: true
 
-# Without it new files only show up at the next scheduled scan (every 12 h).
-- name: Watch existing libraries for new files
+# Existing libraries follow the role's options. Real-time monitoring: without it
+# new files only show up at the next scheduled scan (every 12 h).
+- name: Apply library options to existing libraries
   ansible.builtin.uri:
     url: "http://{{ jellyfin_lan_bind }}/Library/VirtualFolders/LibraryOptions"
     method: POST
@@ -140,13 +141,30 @@
     body_format: json
     body:
       Id: "{{ item.ItemId }}"
-      LibraryOptions: "{{ item.LibraryOptions | combine({'EnableRealtimeMonitor': true}) }}"
+      LibraryOptions: "{{ item.LibraryOptions | combine(jellyfin_library_options) }}"
     status_code: [200, 204]
-  loop: >-
-    {{ jellyfin_folders.json
-       | selectattr('Name', 'in', jellyfin_libraries | map(attribute='name') | list)
-       | rejectattr('LibraryOptions.EnableRealtimeMonitor')
-       | list }}
+  vars:
+    jellyfin_library_options:
+      EnableRealtimeMonitor: true
+      PreferredMetadataLanguage: "{{ jellyfin_metadata_language }}"
+      MetadataCountryCode: "{{ jellyfin_metadata_country }}"
+  loop: "{{ jellyfin_folders.json | selectattr('Name', 'in', jellyfin_libraries | map(attribute='name') | list) | list }}"
   loop_control:
     label: "{{ item.Name }}"
+  when: item.LibraryOptions | combine(jellyfin_library_options) != item.LibraryOptions
+  register: jellyfin_options_update
+  changed_when: true
+
+# A new metadata language only applies to items fetched again.
+- name: Refetch metadata of libraries whose language changed
+  ansible.builtin.uri:
+    url: "http://{{ jellyfin_lan_bind }}/Items/{{ item.item.ItemId }}/Refresh?metadataRefreshMode=FullRefresh&imageRefreshMode=FullRefresh&replaceAllMetadata=true&replaceAllImages=true"
+    method: POST
+    headers:
+      Authorization: 'MediaBrowser Token="{{ jellyfin_auth.json.AccessToken }}"'
+    status_code: [200, 204]
+  loop: "{{ jellyfin_options_update.results | selectattr('changed', 'defined') | selectattr('changed') | list }}"
+  loop_control:
+    label: "{{ item.item.Name }}"
+  when: item.item.LibraryOptions.PreferredMetadataLanguage | default('') != jellyfin_metadata_language
   changed_when: true
