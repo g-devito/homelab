@@ -122,9 +122,31 @@
       LibraryOptions:
         PreferredMetadataLanguage: "{{ jellyfin_metadata_language }}"
         MetadataCountryCode: "{{ jellyfin_metadata_country }}"
+        EnableRealtimeMonitor: true
     status_code: [200, 204]
   loop: "{{ jellyfin_libraries }}"
   loop_control:
     label: "{{ item.name }}"
   when: item.name not in (jellyfin_folders.json | map(attribute='Name') | list)
+  changed_when: true
+
+# Without it new files only show up at the next scheduled scan (every 12 h).
+- name: Watch existing libraries for new files
+  ansible.builtin.uri:
+    url: "http://{{ jellyfin_lan_bind }}/Library/VirtualFolders/LibraryOptions"
+    method: POST
+    headers:
+      Authorization: 'MediaBrowser Token="{{ jellyfin_auth.json.AccessToken }}"'
+    body_format: json
+    body:
+      Id: "{{ item.ItemId }}"
+      LibraryOptions: "{{ item.LibraryOptions | combine({'EnableRealtimeMonitor': true}) }}"
+    status_code: [200, 204]
+  loop: >-
+    {{ jellyfin_folders.json
+       | selectattr('Name', 'in', jellyfin_libraries | map(attribute='name') | list)
+       | rejectattr('LibraryOptions.EnableRealtimeMonitor')
+       | list }}
+  loop_control:
+    label: "{{ item.Name }}"
   changed_when: true
