@@ -1,0 +1,6 @@
+---
+- name: Recreate soularr stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ soularr_dir }}"
+    state: present
+    recreate: always
