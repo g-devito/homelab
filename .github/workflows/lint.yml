@@ -1,0 +1,33 @@
+name: lint
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  ansible:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install tools
+        run: pip install ansible-core ansible-lint yamllint
+
+      - name: Install collections
+        run: ansible-galaxy collection install -r requirements.yml
+
+      # The vault cannot be decrypted in CI; a dummy password is enough for
+      # syntax checks because no encrypted value is templated.
+      - name: Syntax check
+        run: |
+          cp inventory.ini.example inventory.ini
+          echo dummy > .vault_pass
+          ansible-playbook ansible/site.yml --syntax-check
+
+      - name: ansible-lint
+        run: ansible-lint ansible/
