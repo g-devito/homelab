@@ -7,7 +7,7 @@ beszel_hub_host: "{{ hostvars[groups['homelab'][0]]['ansible_host'] }}"
 beszel_hub_port: 8090
 beszel_agent_port: 45876
 beszel_api: "http://{{ beszel_hub_host }}:{{ beszel_hub_port }}/api"
-beszel_admin_email: "{{ alert_email }}"
+beszel_admin_email: "{{ owner_email }}"
 # Extra mounts shown as disks (name -> host path).
 beszel_extra_filesystems: {}
 
