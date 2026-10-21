@@ -5,8 +5,10 @@ jellyfin_media_dir: "{{ media_mount_point | default('/mnt/media') }}"
 # LAN only (home use); not exposed through Traefik.
 jellyfin_lan_bind: "{{ ansible_host }}:8096"
 jellyfin_admin_user: gio
-jellyfin_metadata_language: it
-jellyfin_metadata_country: IT
+jellyfin_ui_culture: it
+# Titles, plots and posters: English, the original language of most of the library.
+jellyfin_metadata_language: en
+jellyfin_metadata_country: US
 # Folders on the media disk -> Jellyfin libraries.
 jellyfin_libraries:
   - { name: Film, type: movies, path: /media/Film }
