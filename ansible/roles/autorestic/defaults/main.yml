@@ -4,6 +4,13 @@
 autorestic_local_retention: --keep-daily 3 --keep-weekly 2 --keep-monthly 1
 autorestic_cloud_retention: --keep-daily 7 --keep-weekly 2 --keep-monthly 3 --keep-yearly 1
 
+# B2 bucket reached through the S3-compatible endpoint (bucket name comes from the vault).
+autorestic_b2_endpoint: s3.eu-central-003.backblazeb2.com
+autorestic_b2_s3_url: "https://{{ autorestic_b2_endpoint }}/{{ autorestic_b2_path }}"
+# Hidden (deleted) files are purged this many days after restic deletes them.
+# Must outlast the bucket's Object Lock retention (30 days), set in the B2 web UI.
+autorestic_b2_keep_hidden_days: 31
+
 # Monthly restore test: restores this path from both repositories into a
 # temp dir, checks both repos, reports to healthchecks.io (mail if it fails).
 autorestic_restore_test_path: /opt/homelab/radicale/data

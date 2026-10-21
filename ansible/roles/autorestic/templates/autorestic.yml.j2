@@ -25,10 +25,12 @@ backends:
     path: /mnt/storage/backups
     key: "{{ autorestic_repo_pwd }}"
 
+  # B2 through its S3 API: a delete only hides a file, so with Object Lock on
+  # the bucket a compromised host cannot destroy the cloud copy.
   cloud-b2:
-    type: b2
-    path: "{{ autorestic_b2_path }}"
+    type: s3
+    path: "{{ autorestic_b2_s3_url }}"
     key: "{{ autorestic_repo_pwd }}"
     env:
-      B2_ACCOUNT_ID: "{{ autorestic_b2_id }}"
-      B2_ACCOUNT_KEY: "{{ autorestic_b2_key }}"
+      AWS_ACCESS_KEY_ID: "{{ autorestic_b2_id }}"
+      AWS_SECRET_ACCESS_KEY: "{{ autorestic_b2_key }}"
