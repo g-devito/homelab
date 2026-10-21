@@ -1,0 +1,4 @@
+---
+# Pinned: "latest" is a newer major with a database migration.
+seafile_image: seafileltd/seafile-mc:11.0.13
+seafile_dir: /opt/homelab/seafile

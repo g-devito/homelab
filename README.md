@@ -1,150 +1,77 @@
-# Homelab Infrastructure -- Automated Deployment
+# Homelab: Infrastructure as Code
 
-**Production-style homelab infrastructure fully automated using Ansible
-and Docker Compose.**\
-This project demonstrates real-world DevOps, system administration, and
-infrastructure automation practices.
+Self-hosted services for a household, on a single Proxmox host, fully described in Ansible.
+One playbook configures the hypervisor and the services. Backups are restore-tested every month.
+Problems reach my mailbox; healthy days send nothing.
 
-------------------------------------------------------------------------
+![lint](https://github.com/g-devito/homelab/actions/workflows/lint.yml/badge.svg)
 
-## 🚀 Overview
+## Architecture
 
-This repository contains a complete **Infrastructure as Code (IaC)**
-solution to deploy and manage a personal homelab.
+```
+Internet ─► router ─► Traefik (Let's Encrypt) ─┬─► Immich        photos
+                                               ├─► Seafile       files
+                                               ├─► Navidrome     music
+                                               ├─► Radicale      CalDAV / CardDAV
+                                               └─► Open WebUI    LLM front-end
+LAN only ─► Jellyfin (external USB media disk) · Beszel (metrics) · *arr stack
 
-It focuses on:
-
--   Automation
--   Security
--   Maintainability
--   Scalability
--   Clean architecture
-
-All services are deployed using **Ansible roles** and **Docker
-Compose**, following industry best practices.
-
-------------------------------------------------------------------------
-
-## 🛠 Tech Stack
-
--   **Ansible** -- configuration management & automation
--   **Docker & Docker Compose** -- container orchestration
--   **Traefik** -- reverse proxy with automatic HTTPS
--   **Autorestic + Restic** -- encrypted backup automation
--   **Linux** -- target platform
-
-------------------------------------------------------------------------
-
-## 📦 Services Deployed
-
--   **Traefik** → Reverse proxy + automatic SSL certificates
--   **Seafile** → Personal cloud storage
--   **Immich** → Photo and video backup server
--   **Radicale** → CalDAV / CardDAV server
--   **Navidrome** → Music streaming server
--   **Autorestic** → Automated backup system
-
-------------------------------------------------------------------------
-
-## 🏗 Architecture
-
--   Modular **role-based Ansible structure**
--   Fully automated provisioning
--   Centralized secrets management using **Ansible Vault**
--   Automated container orchestration
--   Secure-by-default service exposure
-
-------------------------------------------------------------------------
-
-## 📂 Repository Structure
-
-``` text
-homelab/
-├── ansible/
-│   ├── roles/
-│   │   ├── autorestic/
-│   │   ├── common/
-│   │   ├── docker/
-│   │   ├── immich/
-│   │   ├── navidrome/
-│   │   ├── radicale/
-│   │   ├── seafile/
-│   │   ├── storage/
-│   │   └── traefik/
-│   └── site.yml
-├── inventory.ini.example
-├── ansible.cfg
-└── README.md
+Proxmox VE host ── NUT (UPS) · smartd · Postfix relay · Beszel agent · heartbeat
+  └─ Debian VM ─── Docker Compose stacks · autorestic ─► local restic repo ─► Backblaze B2
 ```
 
-------------------------------------------------------------------------
+| Layer | Tools |
+|---|---|
+| Hypervisor | Proxmox VE, managed by the `proxmox_host` role (repos, EFI GRUB, UPS, SMART, BIOS power policy, USB passthrough) |
+| Configuration | Ansible: one role per service, tagged, idempotent (`changed=0` on a second run) |
+| Containers | Docker Compose, every image pinned to an explicit version |
+| Ingress | Traefik v2 with automatic HTTPS |
+| Backups | autorestic + restic: twice-daily local snapshots, nightly copy to B2, monthly automated restore test |
+| Monitoring | Beszel (metrics and threshold alerts), healthchecks.io (dead man's switch), smartd, NUT |
+| Alerting | Postfix on the host relays for the VM; mail is sent only on real problems |
+| CI | GitHub Actions: `ansible-playbook --syntax-check` + `ansible-lint` on every pull request |
+| Secrets | Ansible Vault |
 
-## ⚙️ Deployment
+## Design decisions
 
-``` bash
-git clone git@github.com:g-devito/homelab.git
-cd homelab
-./setup_ansible.sh
-cp inventory.ini.example inventory.ini
-ansible-vault edit ansible/group_vars/all/vault.yml
-ansible-playbook ansible/site.yml
+- **Mail only when something is wrong.** Every signal (failed backup, disk filling up, failing disk, power cut, dead host, unhealthy container) maps to one mail. Successes are silent.
+- **External dead man's switch.** Each host pings healthchecks.io every 5 minutes. If the whole box dies, the alert still arrives.
+- **Backups that are proven.** Each month a timer restores a sample from both repositories and checks snapshot freshness. If it fails or never runs, a mail is sent.
+- **Least privilege for containers.** Containers mount only the paths they use, and web UIs bind to the LAN address.
+- **Nothing upgrades by accident.** Images are pinned, and unattended-upgrades applies only Debian security updates.
+- **Survives crashes.** Containers restart automatically, and a stale backup lock left by a power cut is cleared on the next run.
+
+## Repository layout
+
+```text
+ansible/
+├── site.yml            # whole infrastructure: hypervisor, VM, services, monitoring
+├── restore.yml         # disaster recovery: restore data from B2 or the local repo
+├── group_vars/         # shared settings, vault-encrypted secrets
+└── roles/
+    ├── proxmox_host/   alerting/      common/     storage/     docker/
+    ├── traefik/        immich/        seafile/    navidrome/   radicale/
+    ├── jellyfin/       media_storage/ openwebui/  arr_stack/   beszel/
+    └── autorestic/
 ```
 
-Secrets are managed using **Ansible Vault**.
+## Usage
 
-The `ansible/site.yml` playbook includes full bootstrap roles for a fresh Debian VM:
-`common`, `storage`, `docker`, `traefik`, `seafile`, `immich`, `navidrome`, `autorestic`.
+```bash
+./setup_ansible.sh                     # ansible-core + collections on the controller
+cp inventory.ini.example inventory.ini # hosts, users, SSH keys
+echo '<vault password>' > .vault_pass
 
-------------------------------------------------------------------------
+ansible-playbook ansible/site.yml --check --diff     # see what would change
+ansible-playbook ansible/site.yml                    # apply everything
+ansible-playbook ansible/site.yml --tags immich      # one service
+ansible-playbook ansible/restore.yml -e restore_confirm=yes   # disaster recovery
+```
 
-## 🧪 DR Test Notes
+## Roadmap
 
-Recommended DR flow:
-
-1. Power off old VM.
-2. Boot fresh Debian VM.
-3. Set static LAN IP to `192.168.1.250`.
-4. Clone repo and run Ansible.
-5. Restore application data from backups.
-
-Networking and DNS behavior:
-
-- If the new VM keeps the same LAN IP (`192.168.1.250`) and router port forwards still point to that IP, no router changes are needed.
-- Namecheap DNS usually does not need changes if your public WAN IP is unchanged.
-- If WAN IP changed, update DNS records in Namecheap (A/AAAA or Dynamic DNS).
-
-Credentials required for DR:
-
-- Ansible Vault password (`.vault_pass` or manual vault password prompt).
-- SSH private key used by Ansible to access the host.
-- Backup credentials stored in vault (Restic password, B2 key/id, service secrets) are consumed automatically by roles/templates.
-
-Static IP automation:
-
-- Recommended approach is fixed VM MAC + DHCP reservation to `192.168.1.250`.
-- If you recreate the VM, keep the same virtual NIC MAC to receive the same reserved IP.
-
-Common DR gotchas:
-
-- `disk_uuid` must match the data disk attached to the new VM (`inventory.ini`).
-- Let's Encrypt may issue fresh certs if `acme.json` is not restored; avoid repeated failed attempts to prevent rate-limit issues.
-- First boot DNS/propagation delays can cause temporary non-200 checks on public hostnames.
-
-------------------------------------------------------------------------
-
-## 🔐 Security
-
--   Encrypted secrets (Ansible Vault)
--   TLS certificates managed automatically
--   Minimal service exposure
--   Planned security monitoring stack
-
-------------------------------------------------------------------------
-
-## 📈 Roadmap
-
--   Wazuh SIEM integration
--   Centralized logging
--   Host-based intrusion detection
--   Monitoring stack (Prometheus + Grafana)
--   Kubernetes lab environment
+- OpenTofu (bpg/proxmox provider) to create the VM itself
+- Full disaster-recovery rehearsal on a throwaway VM
+- Traefik v3 migration
+- Renovate for image version bumps
+- k3s lab cluster with GitOps (separate from production)

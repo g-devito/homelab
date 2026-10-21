@@ -1,0 +1,28 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Proves the backups can actually be restored, not just written.
+set -euo pipefail
+
+path={{ autorestic_restore_test_path }}
+for repo in rvault rcloud; do
+    echo "== $repo: repository check"
+    "$repo" check --no-lock
+
+    tmp=$(mktemp -d /var/tmp/restore-test.XXXXXX)
+    trap 'rm -rf "$tmp"' EXIT
+    echo "== $repo: restore $path"
+    "$repo" restore latest --target "$tmp" --include "$path" >/dev/null
+    files=$(find "$tmp$path" -type f | wc -l)
+    echo "$repo: $files files restored"
+    [ "$files" -gt 0 ] || { echo "$repo: restore produced no files"; exit 1; }
+
+    # The newest snapshot must be recent, or the backups have silently stopped.
+    latest=$("$repo" snapshots --latest 1 --json | python3 -c 'import json,sys; print(json.load(sys.stdin)[-1]["time"][:19])')
+    age_h=$(( ( $(date +%s) - $(date -d "$latest" +%s) ) / 3600 ))
+    echo "$repo: latest snapshot $latest (${age_h}h old)"
+    [ "$age_h" -lt 48 ] || { echo "$repo: latest snapshot older than 48h"; exit 1; }
+
+    rm -rf "$tmp"
+    trap - EXIT
+done
+echo "restore test passed"

@@ -16,10 +16,11 @@
     - { role: traefik, tags: [traefik] }
     - { role: seafile, tags: [seafile] }
     - { role: immich, tags: [immich] }
-    # - { role: radicale, tags: [radicale] }
+    - { role: radicale, tags: [radicale] }
     - { role: navidrome, tags: [navidrome] }
     - { role: jellyfin, tags: [jellyfin] }
     - { role: arr_stack, tags: [arr_stack] }
+    - { role: openwebui, tags: [openwebui] }
     - { role: autorestic, tags: [autorestic] }
 
 # Separate plays: the Proxmox agent needs the key the hub generates on the VM.

@@ -108,3 +108,50 @@
   file:
     path: /opt/homelab/homelab-backup.sh
     state: absent
+
+- name: Ensure a healthchecks.io check exists for the restore test
+  uri:
+    url: "{{ healthchecks_api_url }}/checks/"
+    method: POST
+    headers:
+      X-Api-Key: "{{ healthchecks_api_key }}"
+    body_format: json
+    body:
+      name: restore test
+      tags: backup
+      desc: "Monthly restore of {{ autorestic_restore_test_path }} from both repositories (restore-test.timer on {{ inventory_hostname }})."
+      schedule: "0 5 1 * *"
+      tz: Europe/Rome
+      grace: 21600
+      channels: "*"
+      unique: ["name"]
+    status_code: [200, 201]
+  register: autorestic_restore_check
+  delegate_to: localhost
+  become: false
+  no_log: true
+  check_mode: false
+
+- name: Install the restore test
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { src: restore-test.sh.j2, dest: /usr/local/sbin/restore-test, mode: "0700" }
+    - { src: restore-test.service.j2, dest: /etc/systemd/system/restore-test.service, mode: "0644" }
+    - { src: restore-test.timer.j2, dest: /etc/systemd/system/restore-test.timer, mode: "0644" }
+  loop_control:
+    label: "{{ item.dest }}"
+  vars:
+    autorestic_restore_test_ping_url: "{{ autorestic_restore_check.json.ping_url }}"
+  notify: reload systemd
+
+- name: Apply systemd changes for the restore test
+  meta: flush_handlers
+
+- name: Enable the monthly restore test
+  systemd:
+    name: restore-test.timer
+    enabled: true
+    state: started

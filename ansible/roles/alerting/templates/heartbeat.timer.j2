@@ -4,6 +4,8 @@ Description=Heartbeat to healthchecks.io every 5 minutes
 [Timer]
 OnBootSec=1min
 OnUnitActiveSec=5min
+# systemd may delay timers by up to 1 min by default; keep pings inside the 5 min period.
+AccuracySec=5s
 
 [Install]
 WantedBy=timers.target

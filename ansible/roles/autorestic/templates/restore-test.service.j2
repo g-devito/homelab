@@ -1,0 +1,12 @@
+[Unit]
+Description=Monthly backup restore test
+Wants=network-online.target
+After=network-online.target
+RequiresMountsFor=/mnt/storage
+
+[Service]
+Type=oneshot
+ExecStartPre=-/usr/bin/curl -fsS -m 10 --retry 3 -o /dev/null {{ autorestic_restore_test_ping_url }}/start
+ExecStart=/usr/local/sbin/restore-test
+ExecStartPost=/usr/bin/curl -fsS -m 10 --retry 3 -o /dev/null {{ autorestic_restore_test_ping_url }}
+ExecStopPost=/bin/sh -c '[ "$$SERVICE_RESULT" = success ] || journalctl -u %n -n 40 --no-pager | curl -fsS -m 10 --retry 3 -o /dev/null --data-binary @- {{ autorestic_restore_test_ping_url }}/fail'

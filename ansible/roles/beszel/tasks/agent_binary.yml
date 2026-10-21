@@ -1,8 +1,21 @@
 ---
 # Agent as a plain binary on hosts without Docker (the Proxmox host).
-- name: Use the hub key from the hub host
+# When the hub play ran in this run, reuse its key; with --limit on this host,
+# read it from the hub host directly.
+- name: Read the hub public key from the hub host
+  ansible.builtin.command: "ssh-keygen -y -f {{ beszel_data_dir }}/hub/id_ed25519"
+  delegate_to: "{{ groups['homelab'][0] }}"
+  become: true
+  register: beszel_remote_pubkey
+  changed_when: false
+  check_mode: false
+  when: hostvars[groups['homelab'][0]]['beszel_hub_key'] is not defined
+
+- name: Use the hub key
   ansible.builtin.set_fact:
-    beszel_hub_key: "{{ hostvars[groups['homelab'][0]]['beszel_hub_key'] }}"
+    beszel_hub_key: >-
+      {{ hostvars[groups['homelab'][0]]['beszel_hub_key']
+         | default(beszel_remote_pubkey.stdout | default('') | trim) }}
 
 - name: Create the beszel system user
   ansible.builtin.user:

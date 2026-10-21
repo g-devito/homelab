@@ -2,7 +2,10 @@ version: 2
 
 locations:
   homelab:
-    from: /opt/homelab
+    from:
+      - /opt/homelab
+      # Traefik's ACME certificates: a restore must not re-request every cert.
+      - /etc/traefik
     to:
       - local-vault
     options:

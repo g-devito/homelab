@@ -1,0 +1,9 @@
+[Unit]
+Description=Monthly backup restore test
+
+[Timer]
+OnCalendar={{ autorestic_restore_test_schedule }}
+Persistent=true
+
+[Install]
+WantedBy=timers.target
