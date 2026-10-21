@@ -1,0 +1,41 @@
+[Lidarr]
+api_key = {{ arr_stack_lidarr_api_key }}
+host_url = http://lidarr:8686
+download_dir = /downloads
+disable_sync = False
+
+[Slskd]
+api_key = {{ slskd_api_key }}
+host_url = http://slskd:5030
+url_base = /
+download_dir = /downloads
+delete_searches = False
+stalled_timeout = 3600
+
+[Release Settings]
+use_most_common_tracknum = True
+allow_multi_disc = True
+accepted_countries = Europe,Japan,United Kingdom,United States,[Worldwide],Australia,Canada
+skip_region_check = False
+accepted_formats = CD,Digital Media,Vinyl
+
+[Search Settings]
+search_timeout = 5000
+maximum_peer_queue = 50
+minimum_peer_upload_speed = 0
+minimum_filename_match_ratio = 0.5
+allowed_filetypes = flac,mp3
+ignored_users =
+search_type = incrementing_page
+number_of_albums_to_grab = 10
+search_source = missing
+
+[Download Settings]
+download_filtering = True
+use_extension_whitelist = False
+extensions_whitelist = lrc,nfo,txt
+
+[Logging]
+level = INFO
+format = [%(levelname)s|%(module)s|L%(lineno)d] %(asctime)s: %(message)s
+datefmt = %Y-%m-%dT%H:%M:%S%z

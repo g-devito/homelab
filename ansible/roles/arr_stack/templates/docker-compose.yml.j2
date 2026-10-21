@@ -47,6 +47,45 @@ services:
     ports:
       - "{{ arr_stack_lan_ip }}:8686:8686"
 
+  # Soulseek client. Soularr drives it; the downloads dir must be the same path
+  # in slskd, Soularr and Lidarr, so Lidarr can import what slskd fetched.
+  slskd:
+    <<: *common
+    image: slskd/slskd:latest
+    container_name: slskd
+    user: "1000:1000"
+    environment:
+      - TZ=Europe/Rome
+      - SLSKD_SLSK_USERNAME={{ slskd_soulseek_username }}
+      - SLSKD_SLSK_PASSWORD={{ slskd_soulseek_password }}
+      - SLSKD_API_KEY=role=Administrator;cidr=172.16.0.0/12;{{ slskd_api_key }}
+      - SLSKD_DOWNLOADS_DIR=/downloads
+      - SLSKD_NO_AUTH=false
+    volumes:
+      - /opt/homelab/slskd:/app
+      - {{ arr_stack_downloads_dir }}:/downloads
+    ports:
+      - "{{ arr_stack_lan_ip }}:5030:5030"
+      # Soulseek peer port: forward it on the router for incoming transfers.
+      - "50300:50300"
+
+  # Periodically searches slskd for Lidarr's wanted albums and asks Lidarr to import.
+  soularr:
+    <<: *common
+    image: mrusse08/soularr:latest
+    container_name: soularr
+    user: "1000:1000"
+    environment:
+      - TZ=Europe/Rome
+      - SCRIPT_INTERVAL=300
+      - WEBUI_ENABLED=false
+    volumes:
+      - /opt/homelab/soularr:/data
+      - {{ arr_stack_downloads_dir }}:/downloads
+    depends_on:
+      - lidarr
+      - slskd
+
   radarr:
     <<: *common
     image: lscr.io/linuxserver/radarr:latest
