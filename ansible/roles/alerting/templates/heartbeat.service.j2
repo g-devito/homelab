@@ -1,0 +1,8 @@
+[Unit]
+Description=Tell healthchecks.io this host is alive
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/curl -fsS -m 10 --retry 3 -o /dev/null {{ heartbeat_ping_url }}

@@ -1,0 +1,18 @@
+---
+- name: Reload udev for the UPS
+  ansible.builtin.shell: udevadm control --reload-rules && udevadm trigger --subsystem-match=usb --action=add
+  changed_when: true
+
+- name: Restart nut
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: restarted
+  loop:
+    - "nut-driver@{{ nut_ups_name }}"
+    - nut-server
+    - nut-monitor
+
+- name: Restart smartd
+  ansible.builtin.systemd:
+    name: smartd
+    state: restarted

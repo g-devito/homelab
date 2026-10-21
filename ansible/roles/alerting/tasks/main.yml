@@ -1,0 +1,156 @@
+---
+# Mail path: every host -> postfix -> (relay host) -> internet -> alert_email.
+# Nothing here mails on success; only real problems produce mail.
+
+- name: Preseed postfix so the package installs without prompting
+  ansible.builtin.debconf:
+    name: postfix
+    question: postfix/main_mailer_type
+    value: "{{ 'Internet Site' if alerting_mail_relay else 'Satellite system' }}"
+    vtype: select
+
+- name: Install mail and alerting tools
+  ansible.builtin.apt:
+    name:
+      - postfix
+      - bsd-mailx
+      - curl
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Build postfix settings for this host
+  ansible.builtin.set_fact:
+    alerting_postfix_settings: "{{ alerting_postfix_common | combine(alerting_postfix_role) }}"
+  vars:
+    alerting_postfix_common:
+      myhostname: "{{ ansible_facts['fqdn'] if '.' in ansible_facts['fqdn'] else inventory_hostname + '.' + mail_local_domain }}"
+      myorigin: "$myhostname"
+      mydestination: "$myhostname, localhost.$mydomain, localhost"
+    alerting_postfix_role: >-
+      {{
+        {
+          'inet_interfaces': '127.0.0.1, [::1], ' + ansible_host,
+          'mynetworks': mail_relay_networks,
+          'relayhost': '',
+          'smtp_helo_name': alert_helo_name,
+          'sender_canonical_maps': 'regexp:/etc/postfix/sender_canonical' if alert_mail_domain | length > 0 else '',
+          'smtp_tls_security_level': 'may',
+        }
+        if alerting_mail_relay else
+        {
+          'inet_interfaces': 'loopback-only',
+          'mynetworks': '127.0.0.0/8 [::1]/128',
+          'relayhost': '[' + mail_relay_host + ']',
+        }
+      }}
+
+- name: Deploy sender rewrite map on the relay
+  ansible.builtin.template:
+    src: sender_canonical.j2
+    dest: /etc/postfix/sender_canonical
+    mode: "0644"
+  when: alerting_mail_relay and alert_mail_domain | length > 0
+  notify: Reload postfix
+
+- name: Configure postfix
+  ansible.builtin.shell: |
+    current=$(postconf -h {{ item.key }})
+    if [ "$current" != {{ item.value | quote }} ]; then
+      echo "changed: '$current' -> "{{ item.value | quote }}
+      {{ 'true' if ansible_check_mode else '' }} postconf -e {{ (item.key + '=' + item.value) | quote }}
+    fi
+  register: alerting_postconf
+  changed_when: "'changed' in alerting_postconf.stdout"
+  # Runs in --check too, but only reports what it would change.
+  check_mode: false
+  loop: "{{ alerting_postfix_settings | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  notify: Reload postfix
+
+# inet_interfaces is not picked up by a reload.
+- name: Restart postfix when its listen addresses changed
+  ansible.builtin.systemd:
+    name: postfix
+    state: restarted
+  when: alerting_postconf.results | selectattr('item.key', 'equalto', 'inet_interfaces') | selectattr('changed') | list | length > 0
+  # In --check postfix may not be installed yet.
+  ignore_errors: "{{ ansible_check_mode }}"
+
+- name: Send root mail to the alert address
+  ansible.builtin.lineinfile:
+    path: /etc/aliases
+    regexp: '^root:'
+    line: "root: {{ alert_email }}"
+  when: alerting_root_alias
+  notify: Rebuild aliases
+
+- name: Install disk space check
+  ansible.builtin.template:
+    src: disk-alert.sh.j2
+    dest: /usr/local/sbin/disk-alert
+    mode: "0755"
+
+- name: Install disk space check units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+  loop:
+    - disk-alert.service
+    - disk-alert.timer
+  register: alerting_disk_units
+
+- name: Ensure a healthchecks.io heartbeat check exists for this host
+  ansible.builtin.uri:
+    url: "{{ healthchecks_api_url }}/checks/"
+    method: POST
+    headers:
+      X-Api-Key: "{{ healthchecks_api_key }}"
+    body_format: json
+    body:
+      name: "{{ inventory_hostname }} heartbeat"
+      tags: "heartbeat {{ inventory_hostname }}"
+      desc: "Pinged every 5 min by heartbeat.timer on {{ inventory_hostname }}. Down = host or VM is dead."
+      timeout: "{{ alerting_heartbeat_timeout }}"
+      grace: "{{ alerting_heartbeat_grace }}"
+      channels: "*"
+      unique: ["name"]
+    status_code: [200, 201]
+  register: alerting_hc_check
+  delegate_to: localhost
+  become: false
+  no_log: true
+  # Idempotent upsert (unique by name); also needed in --check to know the ping URL.
+  check_mode: false
+
+- name: Remember the heartbeat ping URL
+  ansible.builtin.set_fact:
+    heartbeat_ping_url: "{{ alerting_hc_check.json.ping_url }}"
+
+- name: Install heartbeat units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+  loop:
+    - heartbeat.service
+    - heartbeat.timer
+  register: alerting_heartbeat_units
+
+- name: Reload systemd after unit changes
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: alerting_disk_units.changed or alerting_heartbeat_units.changed
+
+- name: Enable alerting timers
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - disk-alert.timer
+    - heartbeat.timer
+  # In --check the unit files were not written yet.
+  ignore_errors: "{{ ansible_check_mode }}"

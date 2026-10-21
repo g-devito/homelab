@@ -38,6 +38,14 @@
     group: root
     mode: '0600'
 
+- name: Deploy Autorestic secrets for systemd and helper scripts
+  template:
+    src: autorestic.env.j2
+    dest: /etc/autorestic/env
+    owner: root
+    group: root
+    mode: '0600'
+
 - name: Deploy Systemd Services and Timers
   template:
     src: "{{ item }}.j2"
@@ -88,9 +96,15 @@
   template:
     src: "{{ item.src }}"
     dest: "/usr/local/bin/{{ item.dest }}"
-    mode: '0755'
+    mode: '0700'
     owner: root
     group: root
   loop:
     - { src: 'rvault.j2', dest: 'rvault' }
     - { src: 'rcloud.j2', dest: 'rcloud' }
+
+# Old hand-written backup script with plaintext credentials, replaced by this role.
+- name: Remove legacy manual backup script
+  file:
+    path: /opt/homelab/homelab-backup.sh
+    state: absent

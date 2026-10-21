@@ -1,0 +1,21 @@
+---
+# Where every alert ends up. Mail is only sent when something is wrong.
+alert_email: gio@gionet.eu
+# Optional: rewrite alert senders to <host>@<this domain>. Leave empty to keep the
+# hosts' own names, which Tuta already accepts. If set, the domain needs DNS first
+# (A or MX record + TXT "v=spf1 ip4:<WAN IP> -all"), or mail is rejected.
+alert_mail_domain: ""
+# LAN domain from the router's DHCP. It resolves publicly, so receiving servers
+# accept senders like root@<host>.<this domain>.
+mail_local_domain: homenet.telecomitalia.it
+# Forward-confirmed reverse DNS of the WAN IP, used as SMTP HELO.
+alert_helo_name: host-188-8-27-4.business.telecomitalia.it
+
+# Proxmox host that relays mail for the LAN.
+mail_relay_host: 192.168.1.218
+mail_relay_networks: 127.0.0.0/8 [::1]/128 192.168.1.250/32
+
+# Disk space alert threshold (filesystems and LVM thin pools), in percent.
+disk_alert_threshold: 80
+
+healthchecks_api_url: https://healthchecks.io/api/v3

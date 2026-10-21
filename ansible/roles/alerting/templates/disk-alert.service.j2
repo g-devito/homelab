@@ -1,0 +1,6 @@
+[Unit]
+Description=Mail root when disks or thin pools fill up
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/disk-alert

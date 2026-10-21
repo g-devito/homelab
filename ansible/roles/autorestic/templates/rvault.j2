@@ -1,3 +1,4 @@
 #!/bin/bash
-export RESTIC_PASSWORD='{{ autorestic_repo_pwd }}'
-sudo -E restic -r /mnt/storage/backups "$@"
+# restic against the local repository, e.g. `rvault snapshots`
+set -a; . /etc/autorestic/env; set +a
+exec restic -r /mnt/storage/backups "$@"

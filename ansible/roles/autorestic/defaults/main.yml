@@ -1,0 +1,5 @@
+---
+# restic forget policies. The local repo lives on a small 63G disk, so it keeps less;
+# raise it once the backup disk is replaced.
+autorestic_local_retention: --keep-daily 3 --keep-weekly 2 --keep-monthly 1
+autorestic_cloud_retention: --keep-daily 7 --keep-weekly 2 --keep-monthly 3 --keep-yearly 1

@@ -1,0 +1,16 @@
+---
+proxmox_suite: trixie
+
+# NUT, standalone: the UPS is plugged into this host over USB.
+nut_ups_name: ups
+nut_ups_driver: usbhid-ups
+nut_ups_vendorid: "0463"
+nut_ups_desc: "Eaton Ellipse PRO 1200"
+
+# smartd: short self-test daily at 02:00, long self-test Saturdays at 03:00.
+# Warn on temperature >= 45C, critical (mail) >= 55C.
+smartd_schedule: "(S/../.././02|L/../../6/03)"
+smartd_temperature: "4,45,55"
+
+# Lenovo BIOS setting via thinklmi; host must power back on after an outage.
+bios_after_power_loss: "Power On"

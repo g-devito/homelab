@@ -1,0 +1,4 @@
+---
+# The Proxmox host delivers mail straight to the internet and relays for the LAN.
+alerting_mail_relay: true
+alerting_root_alias: false
