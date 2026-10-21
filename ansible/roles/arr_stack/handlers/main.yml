@@ -1,0 +1,6 @@
+---
+- name: Recreate arr stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ arr_stack_dir }}"
+    state: present
+    remove_orphans: false

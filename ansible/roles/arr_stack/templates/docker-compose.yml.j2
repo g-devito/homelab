@@ -1,0 +1,74 @@
+# Least privilege: each container gets its own /config plus only the folders it
+# already uses, under the same in-container paths. None of them can see
+# Immich, Seafile, Radicale or other services' data.
+x-common: &common
+  restart: always
+  environment:
+    - PUID=1000
+    - PGID=1000
+    - TZ=Europe/Rome
+
+services:
+  qbittorrent:
+    <<: *common
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Rome
+      - WEBUI_PORT=8080
+    volumes:
+      - /opt/homelab/qbittorrent/config:/config
+      - {{ arr_stack_downloads_dir }}:/data/downloads
+    ports:
+      - "{{ arr_stack_lan_ip }}:8080:8080"
+
+  prowlarr:
+    <<: *common
+    image: lscr.io/linuxserver/prowlarr:latest
+    container_name: prowlarr
+    volumes:
+      - /opt/homelab/prowlarr/config:/config
+    ports:
+      - "{{ arr_stack_lan_ip }}:9696:9696"
+
+  lidarr:
+    <<: *common
+    image: lscr.io/linuxserver/lidarr:latest
+    container_name: lidarr
+    volumes:
+      - /opt/homelab/lidarr/config:/config
+      - {{ arr_stack_downloads_dir }}:/data/downloads
+      - {{ arr_stack_music_dir }}:/data/navidrome/music
+    ports:
+      - "{{ arr_stack_lan_ip }}:8686:8686"
+
+  radarr:
+    <<: *common
+    image: lscr.io/linuxserver/radarr:latest
+    container_name: radarr
+    volumes:
+      - /opt/homelab/radarr/config:/config
+      - {{ arr_stack_downloads_dir }}:/data/downloads
+    ports:
+      - "{{ arr_stack_lan_ip }}:7878:7878"
+
+  sonarr:
+    <<: *common
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    volumes:
+      - /opt/homelab/sonarr/config:/config
+      - {{ arr_stack_downloads_dir }}:/data/downloads
+    ports:
+      - "{{ arr_stack_lan_ip }}:8989:8989"
+
+  # Only used by Prowlarr over the internal network: no port on the host.
+  flaresolverr:
+    <<: *common
+    image: flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    environment:
+      - TZ=Europe/Rome
+      - LOG_LEVEL=info

@@ -1,0 +1,5 @@
+---
+arr_stack_dir: /opt/homelab/arr-stack
+arr_stack_lan_ip: "{{ ansible_host }}"
+arr_stack_downloads_dir: /opt/homelab/downloads
+arr_stack_music_dir: /opt/homelab/navidrome/music
