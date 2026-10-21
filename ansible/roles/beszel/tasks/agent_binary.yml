@@ -1,0 +1,46 @@
+---
+# Agent as a plain binary on hosts without Docker (the Proxmox host).
+- name: Use the hub key from the hub host
+  ansible.builtin.set_fact:
+    beszel_hub_key: "{{ hostvars[groups['homelab'][0]]['beszel_hub_key'] }}"
+
+- name: Create the beszel system user
+  ansible.builtin.user:
+    name: beszel
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+
+- name: Check installed agent version
+  ansible.builtin.command: /usr/local/bin/beszel-agent -v
+  register: beszel_agent_installed
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Install the agent binary
+  when: beszel_version not in (beszel_agent_installed.stdout | default(''))
+  block:
+    - name: Download the agent release
+      ansible.builtin.unarchive:
+        src: "https://github.com/henrygd/beszel/releases/download/v{{ beszel_version }}/beszel-agent_linux_amd64.tar.gz"
+        dest: /usr/local/bin
+        remote_src: true
+        include:
+          - beszel-agent
+        mode: "0755"
+      notify: Restart beszel-agent
+
+- name: Install the agent service
+  ansible.builtin.template:
+    src: beszel-agent.service.j2
+    dest: /etc/systemd/system/beszel-agent.service
+    mode: "0644"
+  notify: Restart beszel-agent
+
+- name: Enable the agent
+  ansible.builtin.systemd:
+    name: beszel-agent
+    enabled: true
+    state: started
+    daemon_reload: true

@@ -1,0 +1,66 @@
+---
+- name: Validate Beszel secrets
+  ansible.builtin.assert:
+    that:
+      - beszel_admin_password is defined
+      - beszel_admin_password | length > 11
+    fail_msg: "Set beszel_admin_password (12+ chars) in Ansible Vault."
+
+- name: Create Beszel directories
+  ansible.builtin.file:
+    path: "{{ beszel_data_dir }}/{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - hub
+    - agent
+
+- name: Check whether the hub has generated its SSH key
+  ansible.builtin.stat:
+    path: "{{ beszel_data_dir }}/hub/id_ed25519"
+  register: beszel_key_file
+
+# First run: start the hub alone so it creates its key pair.
+- name: Start the hub on first run
+  when: not beszel_key_file.stat.exists
+  block:
+    - name: Deploy compose file without the agent
+      ansible.builtin.template:
+        src: docker-compose.yml.j2
+        dest: "{{ beszel_data_dir }}/docker-compose.yml"
+        mode: "0600"
+
+    - name: Start the hub
+      community.docker.docker_compose_v2:
+        project_src: "{{ beszel_data_dir }}"
+        state: present
+
+    - name: Wait for the hub key
+      ansible.builtin.wait_for:
+        path: "{{ beszel_data_dir }}/hub/id_ed25519"
+        timeout: 120
+
+- name: Read the hub public key
+  ansible.builtin.command: "ssh-keygen -y -f {{ beszel_data_dir }}/hub/id_ed25519"
+  register: beszel_pubkey
+  changed_when: false
+  check_mode: false
+
+- name: Remember the hub public key for the agents
+  ansible.builtin.set_fact:
+    beszel_hub_key: "{{ beszel_pubkey.stdout | trim }}"
+
+- name: Deploy compose file with hub and agent
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ beszel_data_dir }}/docker-compose.yml"
+    mode: "0600"
+  notify: Recreate beszel
+
+- name: Start hub and agent
+  community.docker.docker_compose_v2:
+    project_src: "{{ beszel_data_dir }}"
+    state: present
+
+- name: Configure the hub
+  ansible.builtin.include_tasks: config.yml

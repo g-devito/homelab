@@ -1,0 +1,33 @@
+services:
+  beszel:
+    image: henrygd/beszel:{{ beszel_version }}
+    container_name: beszel
+    restart: always
+    environment:
+      - APP_URL=http://{{ beszel_hub_host }}:{{ beszel_hub_port }}
+      - USER_EMAIL={{ beszel_admin_email }}
+      - USER_PASSWORD={{ beszel_admin_password }}
+    volumes:
+      - {{ beszel_data_dir }}/hub:/beszel_data
+    ports:
+      - "{{ beszel_hub_host }}:{{ beszel_hub_port }}:8090"
+    labels:
+      - "backup.manage=true"
+{% if beszel_hub_key is defined %}
+
+  beszel-agent:
+    image: henrygd/beszel-agent:{{ beszel_version }}
+    container_name: beszel-agent
+    restart: always
+    # Host networking: the agent reports the VM's real network interfaces.
+    network_mode: host
+    environment:
+      - LISTEN={{ ansible_host }}:{{ beszel_agent_port }}
+      - KEY={{ beszel_hub_key }}
+    volumes:
+      - {{ beszel_data_dir }}/agent:/var/lib/beszel-agent
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+{% for name, path in beszel_extra_filesystems.items() %}
+      - {{ path }}:/extra-filesystems/{{ name }}:ro,rslave
+{% endfor %}
+{% endif %}

@@ -1,0 +1,154 @@
+---
+# Hub configuration through its API (PocketBase), so a rebuilt hub needs no clicks.
+- name: Log in to the hub as superuser
+  ansible.builtin.uri:
+    url: "{{ beszel_api }}/collections/_superusers/auth-with-password"
+    method: POST
+    body_format: json
+    body: { identity: "{{ beszel_admin_email }}", password: "{{ beszel_admin_password }}" }
+  register: beszel_su
+  retries: 20
+  delay: 3
+  until: beszel_su.status == 200
+  no_log: true
+
+- name: Log in to the hub as the user
+  ansible.builtin.uri:
+    url: "{{ beszel_api }}/collections/users/auth-with-password"
+    method: POST
+    body_format: json
+    body: { identity: "{{ beszel_admin_email }}", password: "{{ beszel_admin_password }}" }
+  register: beszel_user
+  no_log: true
+
+- name: Remember API credentials
+  ansible.builtin.set_fact:
+    beszel_su_token: "{{ beszel_su.json.token }}"
+    beszel_user_token: "{{ beszel_user.json.token }}"
+    beszel_user_id: "{{ beszel_user.json.record.id }}"
+  no_log: true
+
+- name: Send hub mail through the LAN relay
+  ansible.builtin.uri:
+    url: "{{ beszel_api }}/settings"
+    method: PATCH
+    headers: { Authorization: "{{ beszel_su_token }}" }
+    body_format: json
+    body:
+      meta:
+        appName: Beszel
+        appURL: "http://{{ beszel_hub_host }}:{{ beszel_hub_port }}"
+        senderName: Beszel
+        senderAddress: "beszel@{{ inventory_hostname }}.{{ mail_local_domain }}"
+      smtp:
+        enabled: true
+        host: "{{ mail_relay_host }}"
+        port: 25
+        tls: false
+        authMethod: ""
+        username: ""
+        password: ""
+  changed_when: false
+
+- name: Read existing systems
+  ansible.builtin.uri:
+    url: "{{ beszel_api }}/collections/systems/records?perPage=200"
+    headers: { Authorization: "{{ beszel_user_token }}" }
+  register: beszel_existing_systems
+
+- name: Register systems
+  ansible.builtin.uri:
+    url: "{{ beszel_api }}/collections/systems/records"
+    method: POST
+    headers: { Authorization: "{{ beszel_user_token }}" }
+    body_format: json
+    body:
+      name: "{{ item }}"
+      host: "{{ hostvars[item]['ansible_host'] }}"
+      port: "{{ beszel_agent_port | string }}"
+      users: ["{{ beszel_user_id }}"]
+  loop: "{{ beszel_systems }}"
+  when: item not in (beszel_existing_systems.json['items'] | map(attribute='name') | list)
+  changed_when: true
+
+- name: Read systems with their ids
+  ansible.builtin.uri:
+    url: "{{ beszel_api }}/collections/systems/records?perPage=200"
+    headers: { Authorization: "{{ beszel_user_token }}" }
+  register: beszel_systems_now
+
+- name: Read notification settings
+  ansible.builtin.uri:
+    url: "{{ beszel_api }}/collections/user_settings/records?filter={{ ('user=\"' ~ beszel_user_id ~ '\"') | urlencode }}"
+    headers: { Authorization: "{{ beszel_user_token }}" }
+  register: beszel_settings
+
+- name: Mail alerts to the alert address
+  ansible.builtin.uri:
+    url: "{{ beszel_api }}/collections/user_settings/records{{ ('/' ~ beszel_settings.json['items'][0].id) if beszel_settings.json['items'] else '' }}"
+    method: "{{ 'PATCH' if beszel_settings.json['items'] else 'POST' }}"
+    headers: { Authorization: "{{ beszel_user_token }}" }
+    body_format: json
+    body:
+      user: "{{ beszel_user_id }}"
+      settings:
+        emails: ["{{ alert_email }}"]
+        webhooks: []
+  when: >-
+    not beszel_settings.json['items']
+    or beszel_settings.json['items'][0].settings.emails | default([]) != [alert_email]
+  changed_when: true
+
+- name: Read existing alerts
+  ansible.builtin.uri:
+    url: "{{ beszel_api }}/collections/alerts/records?perPage=500"
+    headers: { Authorization: "{{ beszel_user_token }}" }
+  register: beszel_existing_alerts
+
+- name: Index existing systems and alerts
+  ansible.builtin.set_fact:
+    beszel_system_ids: "{{ beszel_systems_now.json['items'] | items2dict(key_name='name', value_name='id') }}"
+    beszel_alert_keys: >-
+      {{ beszel_existing_alerts.json['items'] | map(attribute='system')
+         | zip(beszel_existing_alerts.json['items'] | map(attribute='name'))
+         | map('join', '/') | list }}
+
+# item.0 = host name, item.1 = alert definition
+- name: Create missing alerts common to all systems
+  ansible.builtin.uri:
+    url: "{{ beszel_api }}/collections/alerts/records"
+    method: POST
+    headers: { Authorization: "{{ beszel_user_token }}" }
+    body_format: json
+    body:
+      user: "{{ beszel_user_id }}"
+      system: "{{ beszel_system_ids[item.0] }}"
+      name: "{{ item.1.name }}"
+      value: "{{ item.1.value }}"
+      min: "{{ item.1.min }}"
+  loop: "{{ beszel_systems | product(beszel_alerts_common) | list }}"
+  loop_control:
+    label: "{{ item.0 }} {{ item.1.name }}"
+  when: (beszel_system_ids[item.0] ~ '/' ~ item.1.name) not in beszel_alert_keys
+  changed_when: true
+
+# item.0 = {key: host, value: [...]}, item.1 = alert definition
+- name: Create missing host-specific alerts
+  ansible.builtin.uri:
+    url: "{{ beszel_api }}/collections/alerts/records"
+    method: POST
+    headers: { Authorization: "{{ beszel_user_token }}" }
+    body_format: json
+    body:
+      user: "{{ beszel_user_id }}"
+      system: "{{ beszel_system_ids[item.0.key] }}"
+      name: "{{ item.1.name }}"
+      value: "{{ item.1.value }}"
+      min: "{{ item.1.min }}"
+  loop: "{{ beszel_alerts_by_host | dict2items | subelements('value') }}"
+  loop_control:
+    label: "{{ item.0.key }} {{ item.1.name }}"
+  when:
+    - item.0.key in beszel_system_ids
+    - (beszel_system_ids[item.0.key] ~ '/' ~ item.1.name) not in beszel_alert_keys
+  changed_when: true

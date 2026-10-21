@@ -1,2 +1,5 @@
 ---
 alerting_mail_relay: false
+
+beszel_extra_filesystems:
+  media: /mnt/media

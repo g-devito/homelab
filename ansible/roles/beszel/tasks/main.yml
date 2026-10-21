@@ -1,0 +1,8 @@
+---
+- name: Hub and Docker agent
+  ansible.builtin.include_tasks: hub.yml
+  when: inventory_hostname in groups['homelab']
+
+- name: Binary agent
+  ansible.builtin.include_tasks: agent_binary.yml
+  when: inventory_hostname in groups['proxmox']
