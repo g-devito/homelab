@@ -44,3 +44,11 @@
     name: "{{ ansible_user }}"
     groups: docker
     append: yes
+- name: Configure the Docker daemon
+  template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart docker

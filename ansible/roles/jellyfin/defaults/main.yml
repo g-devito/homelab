@@ -1,0 +1,13 @@
+---
+jellyfin_image: jellyfin/jellyfin:12.2
+jellyfin_data_dir: /opt/homelab/jellyfin
+jellyfin_media_dir: "{{ media_mount_point | default('/mnt/media') }}"
+# LAN only (home use); not exposed through Traefik.
+jellyfin_lan_bind: "{{ ansible_host }}:8096"
+jellyfin_admin_user: gio
+jellyfin_metadata_language: it
+jellyfin_metadata_country: IT
+# Folders on the media disk -> Jellyfin libraries.
+jellyfin_libraries:
+  - { name: Film, type: movies, path: /media/Film }
+  - { name: Serie, type: tvshows, path: /media/Serie }

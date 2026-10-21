@@ -1,0 +1,18 @@
+---
+# External media disk (films/series). NTFS on purpose: readable on any PC if the
+# server is down. Never formatted by this role. Any disk works as long as its
+# partition is labelled "Media" and it is the only USB disk on the VM.
+media_mount_point: /mnt/media
+media_disk_label: Media
+media_disk_fstype: ntfs3
+media_disk_owner: 1000
+media_disk_options: "uid={{ media_disk_owner }},gid={{ media_disk_owner }},dmask=022,fmask=133,noatime,nofail,x-systemd.device-timeout=15s"
+# udev names the USB disk /dev/media-disk so smartd does not depend on its serial.
+media_disk_smart_device: /dev/media-disk
+media_disk_smart_type: sat
+# Short self-test daily 02:30, long self-test Sundays 04:00. Mail on temp >= 55C.
+media_disk_smart_schedule: "(S/../.././02|L/../../7/04)"
+# USB-SATA bridges that misbehave with UAS under passthrough (reads abort, the
+# disk resets every 30s). "vid:pid:u" makes them use the plain usb-storage driver.
+media_disk_usb_quirks:
+  - "18a5:0411:u"   # Verbatim Portable USB3.0 (HGST 500G)

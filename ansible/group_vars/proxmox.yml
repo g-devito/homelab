@@ -2,3 +2,8 @@
 # The Proxmox host delivers mail straight to the internet and relays for the LAN.
 alerting_mail_relay: true
 alerting_root_alias: false
+
+# USB passthrough to VMs. Matched by physical port, so any disk plugged into
+# that port goes to the VM (rear blue USB 3 port, labelled 4 on the case).
+proxmox_vm_usb:
+  - { vmid: 101, slot: usb0, device: "host=2-2,usb3=1" }   # media disk

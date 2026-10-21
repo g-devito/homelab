@@ -1,0 +1,7 @@
+---
+# Upstream DNS for containers. Set explicitly: Docker copies the host's
+# resolv.conf when it starts, and at boot it can start before DHCP has
+# written it, leaving every container without DNS.
+docker_dns:
+  - 192.168.1.1
+  - 1.1.1.1

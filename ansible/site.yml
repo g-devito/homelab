@@ -12,10 +12,12 @@
     - { role: storage, tags: [storage] }
     - { role: docker, tags: [docker] }
     - { role: alerting, tags: [alerting] }
+    - { role: media_storage, tags: [media] }
     - { role: traefik, tags: [traefik] }
     - { role: seafile, tags: [seafile] }
     - { role: immich, tags: [immich] }
     # - { role: radicale, tags: [radicale] }
     - { role: navidrome, tags: [navidrome] }
+    - { role: jellyfin, tags: [jellyfin] }
     - { role: getmusic, tags: [getmusic] }
     - { role: autorestic, tags: [autorestic] }

@@ -1,0 +1,67 @@
+---
+- name: Install SMART tools
+  ansible.builtin.apt:
+    name: smartmontools
+    state: present
+
+- name: Disable UAS for known-bad USB bridges
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/media-disk-quirks.conf
+    content: |
+      # Managed by Ansible (media_storage)
+      options usb-storage quirks={{ media_disk_usb_quirks | join(',') }}
+    mode: "0644"
+  when: media_disk_usb_quirks | length > 0
+
+- name: Mount the media disk
+  ansible.posix.mount:
+    path: "{{ media_mount_point }}"
+    src: "LABEL={{ media_disk_label }}"
+    fstype: "{{ media_disk_fstype }}"
+    opts: "{{ media_disk_options }}"
+    state: mounted
+
+- name: Give the USB media disk a stable name
+  ansible.builtin.template:
+    src: 99-media-disk.rules.j2
+    dest: /etc/udev/rules.d/99-media-disk.rules
+    mode: "0644"
+  register: media_udev_rule
+
+- name: Apply the udev rule to the disk already plugged in
+  ansible.builtin.shell: udevadm control --reload-rules && udevadm trigger --subsystem-match=block --action=add
+  when: media_udev_rule.changed
+
+- name: Watch the media disk with smartd
+  ansible.builtin.template:
+    src: smartd.conf.j2
+    dest: /etc/smartd.conf
+    mode: "0644"
+  notify: Restart smartd
+
+# Debian skips smartd inside VMs; this disk is real hardware passed through over USB.
+- name: Create smartd override directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/smartmontools.service.d
+    state: directory
+    mode: "0755"
+
+- name: Allow smartd to run inside the VM
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/smartmontools.service.d/vm.conf
+    content: |
+      [Unit]
+      ConditionVirtualization=
+    mode: "0644"
+  register: media_smartd_dropin
+
+- name: Reload systemd after the smartd override
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: media_smartd_dropin.changed
+
+- name: Enable smartd
+  ansible.builtin.systemd:
+    name: smartmontools
+    enabled: true
+    state: started

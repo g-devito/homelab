@@ -14,3 +14,9 @@ smartd_temperature: "4,45,55"
 
 # Lenovo BIOS setting via thinklmi; host must power back on after an outage.
 bios_after_power_loss: "Power On"
+
+proxmox_vm_usb: []
+
+# USB disks are passed through to VMs. If the host's own usb-storage/uas driver
+# also grabs them, host and guest read the disk at once and I/O aborts.
+proxmox_block_usb_storage: true

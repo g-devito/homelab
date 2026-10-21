@@ -1,0 +1,130 @@
+---
+- name: Validate required Jellyfin secrets
+  ansible.builtin.assert:
+    that:
+      - jellyfin_admin_password is defined
+      - jellyfin_admin_password | length > 11
+    fail_msg: "Set jellyfin_admin_password (12+ chars) in Ansible Vault."
+
+- name: Create Jellyfin directories under /opt/homelab
+  ansible.builtin.file:
+    path: "{{ jellyfin_data_dir }}/{{ item }}"
+    state: directory
+    owner: "1000"
+    group: "1000"
+    mode: "0755"
+  loop:
+    - config
+    - cache
+
+- name: Deploy Jellyfin docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ jellyfin_data_dir }}/docker-compose.yml"
+    mode: "0644"
+  notify: Recreate jellyfin
+
+- name: Start Jellyfin
+  community.docker.docker_compose_v2:
+    project_src: "{{ jellyfin_data_dir }}"
+    state: present
+
+- name: Wait for Jellyfin to answer
+  ansible.builtin.uri:
+    url: "http://{{ jellyfin_lan_bind }}/System/Info/Public"
+    return_content: true
+  register: jellyfin_info
+  retries: 30
+  delay: 5
+  # While starting, Jellyfin answers 200 with a placeholder; wait for real server info.
+  until: jellyfin_info.status == 200 and 'StartupWizardCompleted' in (jellyfin_info.json | default({}))
+  check_mode: false
+
+# First start only: replace the browser setup wizard with API calls so a rebuilt
+# server comes up with the same admin account and settings.
+- name: Run the first-start setup
+  when: not (jellyfin_info.json.StartupWizardCompleted | bool)
+  block:
+    - name: Set language and metadata country
+      ansible.builtin.uri:
+        url: "http://{{ jellyfin_lan_bind }}/Startup/Configuration"
+        method: POST
+        body_format: json
+        body:
+          UICulture: "{{ jellyfin_metadata_language }}"
+          MetadataCountryCode: "{{ jellyfin_metadata_country }}"
+          PreferredMetadataLanguage: "{{ jellyfin_metadata_language }}"
+        status_code: [200, 204]
+
+    # Jellyfin creates the first user on GET; the POST then names it and sets the password.
+    - name: Prepare the first user
+      ansible.builtin.uri:
+        url: "http://{{ jellyfin_lan_bind }}/Startup/User"
+        status_code: [200, 204]
+
+    - name: Create the admin user
+      ansible.builtin.uri:
+        url: "http://{{ jellyfin_lan_bind }}/Startup/User"
+        method: POST
+        body_format: json
+        body:
+          Name: "{{ jellyfin_admin_user }}"
+          Password: "{{ jellyfin_admin_password }}"
+        status_code: [200, 204]
+      no_log: true
+
+    - name: Allow access from other devices on the LAN
+      ansible.builtin.uri:
+        url: "http://{{ jellyfin_lan_bind }}/Startup/RemoteAccess"
+        method: POST
+        body_format: json
+        body:
+          EnableRemoteAccess: true
+          EnableAutomaticPortMapping: false
+        status_code: [200, 204]
+
+    - name: Finish the setup wizard
+      ansible.builtin.uri:
+        url: "http://{{ jellyfin_lan_bind }}/Startup/Complete"
+        method: POST
+        status_code: [200, 204]
+
+- name: Log in as the admin
+  ansible.builtin.uri:
+    url: "http://{{ jellyfin_lan_bind }}/Users/AuthenticateByName"
+    method: POST
+    headers:
+      Authorization: 'MediaBrowser Client="ansible", Device="ansible", DeviceId="ansible-{{ inventory_hostname }}", Version="1"'
+    body_format: json
+    body:
+      Username: "{{ jellyfin_admin_user }}"
+      Pw: "{{ jellyfin_admin_password }}"
+  register: jellyfin_auth
+  no_log: true
+  check_mode: false
+
+- name: Read existing libraries
+  ansible.builtin.uri:
+    url: "http://{{ jellyfin_lan_bind }}/Library/VirtualFolders"
+    headers:
+      Authorization: 'MediaBrowser Token="{{ jellyfin_auth.json.AccessToken }}"'
+  register: jellyfin_folders
+  check_mode: false
+
+- name: Create missing libraries
+  ansible.builtin.uri:
+    url: "http://{{ jellyfin_lan_bind }}/Library/VirtualFolders?name={{ item.name | urlencode }}&collectionType={{ item.type }}&paths={{ item.path | urlencode }}&refreshLibrary=true"
+    method: POST
+    headers:
+      Authorization: 'MediaBrowser Token="{{ jellyfin_auth.json.AccessToken }}"'
+    body_format: json
+    body:
+      LibraryOptions:
+        PreferredMetadataLanguage: "{{ jellyfin_metadata_language }}"
+        MetadataCountryCode: "{{ jellyfin_metadata_country }}"
+    status_code: [200, 204]
+  loop: "{{ jellyfin_libraries }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.name not in (jellyfin_folders.json | map(attribute='Name') | list)
+  changed_when: true

@@ -115,3 +115,46 @@
   when:
     - proxmox_power_loss.content is defined
     - (proxmox_power_loss.content | b64decode | trim) != bios_after_power_loss
+
+- name: Keep the host's USB storage drivers off passed-through disks
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/no-usb-storage.conf
+    content: |
+      # Managed by Ansible: USB disks belong to VMs (passthrough), not to the host.
+      blacklist uas
+      blacklist usb_storage
+      install uas /bin/false
+      install usb_storage /bin/false
+    mode: "0644"
+  when: proxmox_block_usb_storage
+  register: proxmox_usb_blacklist
+
+- name: Rebuild initramfs so the blacklist also applies at early boot
+  ansible.builtin.command: update-initramfs -u -k all
+  when: proxmox_usb_blacklist.changed
+
+- name: Unload USB storage drivers already loaded on the host
+  ansible.builtin.shell: |
+    for m in uas usb_storage; do
+      if lsmod | grep -q "^$m "; then modprobe -r "$m" && echo "unloaded $m"; fi
+    done
+  register: proxmox_usb_unload
+  changed_when: "'unloaded' in proxmox_usb_unload.stdout"
+  when: proxmox_block_usb_storage
+
+- name: Read VM configs for USB passthrough
+  ansible.builtin.command: "qm config {{ item.vmid }}"
+  register: proxmox_vm_cfg
+  changed_when: false
+  check_mode: false
+  loop: "{{ proxmox_vm_usb }}"
+  loop_control:
+    label: "{{ item.vmid }} {{ item.slot }}"
+
+- name: Pass USB devices through to VMs (hotplugged, no VM restart)
+  ansible.builtin.command: "qm set {{ item.item.vmid }} --{{ item.item.slot }} {{ item.item.device }}"
+  when: "(item.item.slot ~ ': ' ~ item.item.device) not in item.stdout_lines"
+  changed_when: true
+  loop: "{{ proxmox_vm_cfg.results }}"
+  loop_control:
+    label: "{{ item.item.vmid }} {{ item.item.slot }}"
