@@ -1,16 +1,4 @@
 ---
-- name: Validate required Soulseek secrets
-  ansible.builtin.assert:
-    that:
-      - slskd_soulseek_username is defined
-      - slskd_soulseek_password is defined
-      - slskd_api_key is defined
-      - slskd_api_key | length >= 16
-    fail_msg: >-
-      Set slskd_soulseek_username, slskd_soulseek_password and slskd_api_key
-      (16+ chars) in Ansible Vault.
-  no_log: true
-
 - name: Create arr-stack directories
   ansible.builtin.file:
     path: "{{ item }}"
@@ -26,8 +14,6 @@
     - /opt/homelab/lidarr/config
     - /opt/homelab/radarr/config
     - /opt/homelab/sonarr/config
-    - /opt/homelab/slskd
-    - /opt/homelab/soularr
 
 - name: Deploy arr-stack docker-compose file
   ansible.builtin.template:
@@ -42,25 +28,3 @@
   community.docker.docker_compose_v2:
     project_src: "{{ arr_stack_dir }}"
     state: present
-
-- name: Read Lidarr's generated API key
-  ansible.builtin.slurp:
-    src: /opt/homelab/lidarr/config/config.xml
-  register: arr_stack_lidarr_config
-  no_log: true
-  retries: 12
-  delay: 5
-  until: arr_stack_lidarr_config is succeeded
-
-- name: Deploy Soularr config
-  ansible.builtin.template:
-    src: soularr-config.ini.j2
-    dest: /opt/homelab/soularr/config.ini
-    owner: "1000"
-    group: "1000"
-    mode: "0600"
-  vars:
-    arr_stack_lidarr_api_key: >-
-      {{ (arr_stack_lidarr_config.content | b64decode) | regex_search('<ApiKey>([^<]+)</ApiKey>', '\\1') | first }}
-  no_log: true
-  notify: Restart soularr

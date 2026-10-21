@@ -1,0 +1,8 @@
+---
+soularr_dir: /opt/homelab/soularr
+slskd_dir: /opt/homelab/slskd
+# Same host path Lidarr mounts as /downloads: all three containers must see the
+# downloads under the same in-container path for Lidarr to import them.
+soularr_downloads_dir: /opt/homelab/downloads
+soularr_lidarr_config: /opt/homelab/lidarr/config/config.xml
+soularr_lan_ip: "{{ ansible_host }}"

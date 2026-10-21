@@ -1,0 +1,65 @@
+---
+- name: Validate required Soulseek secrets
+  ansible.builtin.assert:
+    that:
+      - slskd_soulseek_username is defined
+      - slskd_soulseek_password is defined
+      - slskd_api_key is defined
+      - slskd_api_key | length >= 16
+    fail_msg: >-
+      Set slskd_soulseek_username, slskd_soulseek_password and slskd_api_key
+      (16+ chars) in Ansible Vault.
+  no_log: true
+
+- name: Create Soularr directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "1000"
+    group: "1000"
+    mode: "0755"
+  loop:
+    - "{{ soularr_dir }}"
+    - "{{ soularr_dir }}/data"
+    - "{{ slskd_dir }}"
+
+- name: Read Lidarr's generated API key
+  ansible.builtin.slurp:
+    src: "{{ soularr_lidarr_config }}"
+  register: soularr_lidarr_xml
+  no_log: true
+
+- name: Extract Lidarr's API key
+  ansible.builtin.set_fact:
+    soularr_lidarr_api_key: "{{ soularr_lidarr_xml.content | b64decode | regex_findall('<ApiKey>([^<]+)</ApiKey>') | first | default('') }}"
+  no_log: true
+
+- name: Check that Lidarr's API key was found
+  ansible.builtin.assert:
+    that: soularr_lidarr_api_key | length > 0
+    fail_msg: "No <ApiKey> in {{ soularr_lidarr_config }}; is Lidarr initialised?"
+
+- name: Deploy Soularr config
+  ansible.builtin.template:
+    src: soularr-config.ini.j2
+    dest: "{{ soularr_dir }}/data/config.ini"
+    owner: "1000"
+    group: "1000"
+    mode: "0600"
+  diff: false
+  notify: Recreate soularr stack
+
+- name: Deploy Soularr docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ soularr_dir }}/docker-compose.yml"
+    owner: "1000"
+    group: "1000"
+    mode: "0600"
+  diff: false
+  notify: Recreate soularr stack
+
+- name: Start Soularr stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ soularr_dir }}"
+    state: present

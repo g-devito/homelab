@@ -1,0 +1,51 @@
+# Own compose project so the arr-stack file stays untouched. It joins that
+# stack's network to reach Lidarr as http://lidarr:8686.
+x-common: &common
+  restart: always
+  # Stopped during backups, like the arr containers.
+  labels:
+    - "backup.manage=true"
+
+services:
+  slskd:
+    <<: *common
+    image: slskd/slskd:latest
+    container_name: slskd
+    user: "1000:1000"
+    environment:
+      - TZ=Europe/Rome
+      - SLSKD_SLSK_USERNAME={{ slskd_soulseek_username }}
+      - SLSKD_SLSK_PASSWORD={{ slskd_soulseek_password | replace('$', '$$') }}
+      - SLSKD_API_KEY=role=Administrator;cidr=172.16.0.0/12;{{ slskd_api_key }}
+      - SLSKD_DOWNLOADS_DIR=/downloads
+    volumes:
+      - {{ slskd_dir }}:/app
+      - {{ soularr_downloads_dir }}:/downloads
+    ports:
+      - "{{ soularr_lan_ip }}:5030:5030"
+      # Soulseek peer port: forward it on the router for incoming transfers.
+      - "50300:50300"
+    networks:
+      - arr
+
+  soularr:
+    <<: *common
+    image: mrusse08/soularr:latest
+    container_name: soularr
+    user: "1000:1000"
+    environment:
+      - TZ=Europe/Rome
+      - SCRIPT_INTERVAL=300
+      - WEBUI_ENABLED=false
+    volumes:
+      - {{ soularr_dir }}/data:/data
+      - {{ soularr_downloads_dir }}:/downloads
+    depends_on:
+      - slskd
+    networks:
+      - arr
+
+networks:
+  arr:
+    name: arr-stack_default
+    external: true
