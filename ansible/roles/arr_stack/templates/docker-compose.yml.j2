@@ -3,6 +3,9 @@
 # Immich, Seafile, Radicale or other services' data.
 x-common: &common
   restart: always
+  # Stopped during backups, so their SQLite databases are copied at rest.
+  labels:
+    - "backup.manage=true"
   environment:
     - PUID=1000
     - PGID=1000
