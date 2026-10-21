@@ -1,0 +1,31 @@
+---
+beszel_version: "0.21.0"
+beszel_data_dir: /opt/homelab/beszel
+# Hub runs on the VM, LAN only. Agents listen on their host's LAN address;
+# the hub dials them over SSH with its own key, so no token is needed.
+beszel_hub_host: "{{ hostvars[groups['homelab'][0]]['ansible_host'] }}"
+beszel_hub_port: 8090
+beszel_agent_port: 45876
+beszel_api: "http://{{ beszel_hub_host }}:{{ beszel_hub_port }}/api"
+beszel_admin_email: "{{ owner_email }}"
+# Extra mounts shown as disks (name -> host path).
+beszel_extra_filesystems: {}
+
+# Systems the hub polls (inventory hosts running an agent).
+beszel_systems: "{{ groups['homelab'] + groups['proxmox'] }}"
+# Alerts per system: value = threshold, min = minutes it must last before mailing.
+# Only sustained, actionable problems; disk space and SMART are also covered
+# by the alerting role.
+beszel_alerts_common:
+  - { name: Status, value: 0, min: 5 }
+  - { name: CPU, value: 90, min: 15 }
+  - { name: Memory, value: 90, min: 15 }
+  - { name: Disk, value: 85, min: 15 }
+  - { name: SystemdFailed, value: 0, min: 10 }
+beszel_alerts_by_host:
+  gionet:
+    # Disk saturation (e.g. the USB media disk): CPUs waiting on I/O.
+    - { name: CPUIOWait, value: 30, min: 15 }
+    - { name: ContainerHealth, value: 0, min: 10 }
+  pve:
+    - { name: Temperature, value: 80, min: 10 }

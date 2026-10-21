@@ -1,8 +1,8 @@
 services:
   radicale:
-    image: ghcr.io/kozea/radicale:stable
+    image: ghcr.io/kozea/radicale:3.6.1
     container_name: radicale
-    restart: unless-stopped
+    restart: always
     networks:
       - traefik-proxy
     volumes:
@@ -15,6 +15,7 @@ services:
       - "traefik.http.routers.radicale.entrypoints=https"
       - "traefik.http.routers.radicale.tls.certresolver=letsencrypt"
       - "traefik.http.services.radicale.loadbalancer.server.port=5232"
+      - "traefik.docker.network=traefik-proxy"
 
 networks:
   traefik-proxy:

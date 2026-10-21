@@ -30,6 +30,8 @@
     mode: '0600' # Permissions must be restricted for ACME file
     owner: root
     group: root
+    access_time: preserve
+    modification_time: preserve
 
 - name: Create traefik-proxy network if it doesn't exist
   community.docker.docker_network:
@@ -47,4 +49,3 @@
   community.docker.docker_compose_v2:
     project_src: /etc/traefik
     state: present
-  notify: Restart traefik

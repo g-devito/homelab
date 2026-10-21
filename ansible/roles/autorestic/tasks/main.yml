@@ -37,6 +37,8 @@
     owner: root
     group: root
     mode: '0600'
+  # Both files hold secrets: never print them with --diff.
+  diff: false
 
 - name: Deploy Autorestic secrets for systemd and helper scripts
   template:
@@ -45,6 +47,8 @@
     owner: root
     group: root
     mode: '0600'
+  # Both files hold secrets: never print them with --diff.
+  diff: false
 
 - name: Deploy Systemd Services and Timers
   template:
@@ -92,6 +96,61 @@
     - "'already initialized' not in cloud_init.stdout"
   changed_when: "'created restic repository' in cloud_init.stdout"
 
+# With the S3 API restic's deletes only hide files; this rule purges hidden
+# versions once the Object Lock retention has expired, so the bucket does not grow forever.
+- name: Authorize against the B2 API
+  uri:
+    url: https://api.backblazeb2.com/b2api/v3/b2_authorize_account
+    url_username: "{{ autorestic_b2_id }}"
+    url_password: "{{ autorestic_b2_key }}"
+    force_basic_auth: true
+  register: autorestic_b2_auth
+  delegate_to: localhost
+  become: false
+  no_log: true
+  check_mode: false
+
+- name: Read the B2 bucket settings
+  uri:
+    url: "{{ autorestic_b2_auth.json.apiInfo.storageApi.apiUrl }}/b2api/v3/b2_list_buckets"
+    method: POST
+    headers:
+      Authorization: "{{ autorestic_b2_auth.json.authorizationToken }}"
+    body_format: json
+    body:
+      accountId: "{{ autorestic_b2_auth.json.accountId }}"
+      bucketName: "{{ autorestic_b2_path }}"
+  register: autorestic_b2_bucket
+  delegate_to: localhost
+  become: false
+  no_log: true
+  check_mode: false
+
+- name: Purge hidden B2 files after the Object Lock window
+  uri:
+    url: "{{ autorestic_b2_auth.json.apiInfo.storageApi.apiUrl }}/b2api/v3/b2_update_bucket"
+    method: POST
+    headers:
+      Authorization: "{{ autorestic_b2_auth.json.authorizationToken }}"
+    body_format: json
+    body:
+      accountId: "{{ autorestic_b2_auth.json.accountId }}"
+      bucketId: "{{ autorestic_b2_bucket.json.buckets[0].bucketId }}"
+      lifecycleRules: "{{ autorestic_b2_lifecycle }}"
+  vars:
+    autorestic_b2_lifecycle:
+      - fileNamePrefix: ""
+        daysFromHidingToDeleting: "{{ autorestic_b2_keep_hidden_days | int }}"
+        daysFromUploadingToHiding: null
+  when: >-
+    autorestic_b2_bucket.json.buckets[0].lifecycleRules
+    | map(attribute='daysFromHidingToDeleting') | list
+    != [autorestic_b2_keep_hidden_days | int]
+  changed_when: true
+  delegate_to: localhost
+  become: false
+  no_log: true
+
 - name: Create Restic Helper Scripts
   template:
     src: "{{ item.src }}"
@@ -108,3 +167,83 @@
   file:
     path: /opt/homelab/homelab-backup.sh
     state: absent
+
+# Grace also caps the run time after the /start ping: a local backup takes
+# minutes, the nightly B2 copy longer, so both get an hour.
+- name: Ensure healthchecks.io checks exist for the backups
+  uri:
+    url: "{{ healthchecks_api_url }}/checks/"
+    method: POST
+    headers:
+      X-Api-Key: "{{ healthchecks_api_key }}"
+    body_format: json
+    body:
+      name: "{{ item.name }}"
+      tags: backup
+      desc: "{{ item.desc }}"
+      schedule: "{{ item.schedule }}"
+      tz: Europe/Rome
+      grace: 3600
+      channels: "*"
+      unique: ["name"]
+    status_code: [200, 201]
+  loop:
+    - name: local backup
+      desc: "autorestic-local.timer on {{ inventory_hostname }}: snapshot to the local repository."
+      schedule: "0 0,12 * * *"
+    - name: cloud backup
+      desc: "autorestic-cloud.timer on {{ inventory_hostname }}: copy of the local repository to B2."
+      schedule: "0 3 * * *"
+  loop_control:
+    label: "{{ item.name }}"
+  delegate_to: localhost
+  become: false
+  no_log: true
+  changed_when: false
+
+- name: Ensure a healthchecks.io check exists for the restore test
+  uri:
+    url: "{{ healthchecks_api_url }}/checks/"
+    method: POST
+    headers:
+      X-Api-Key: "{{ healthchecks_api_key }}"
+    body_format: json
+    body:
+      name: restore test
+      tags: backup
+      desc: "Monthly restore of {{ autorestic_restore_test_path }} from both repositories (restore-test.timer on {{ inventory_hostname }})."
+      schedule: "0 5 1 * *"
+      tz: Europe/Rome
+      grace: 21600
+      channels: "*"
+      unique: ["name"]
+    status_code: [200, 201]
+  register: autorestic_restore_check
+  delegate_to: localhost
+  become: false
+  no_log: true
+  check_mode: false
+
+- name: Install the restore test
+  template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { src: restore-test.sh.j2, dest: /usr/local/sbin/restore-test, mode: "0700" }
+    - { src: restore-test.service.j2, dest: /etc/systemd/system/restore-test.service, mode: "0644" }
+    - { src: restore-test.timer.j2, dest: /etc/systemd/system/restore-test.timer, mode: "0644" }
+  loop_control:
+    label: "{{ item.dest }}"
+  vars:
+    autorestic_restore_test_ping_url: "{{ autorestic_restore_check.json.ping_url }}"
+  notify: reload systemd
+
+- name: Apply systemd changes for the restore test
+  meta: flush_handlers
+
+- name: Enable the monthly restore test
+  systemd:
+    name: restore-test.timer
+    enabled: true
+    state: started

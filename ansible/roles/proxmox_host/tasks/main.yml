@@ -94,6 +94,20 @@
     - nut-server
     - nut-monitor
 
+# Proxmox's own notifications (and root's mail, via proxmox-mail-forward) go to root@pam's address.
+- name: Read root@pam's notification address
+  ansible.builtin.command: pveum user list --output-format json
+  register: proxmox_users
+  changed_when: false
+  check_mode: false
+
+- name: Send Proxmox notifications to the alert address
+  ansible.builtin.command: pveum user modify root@pam --email {{ alert_email }}
+  when: >-
+    (proxmox_users.stdout | from_json | selectattr('userid', 'equalto', 'root@pam')
+    | map(attribute='email') | first | default('')) != alert_email
+  changed_when: true
+
 - name: Configure smartd self-tests and alerts
   ansible.builtin.template:
     src: smartd.conf.j2

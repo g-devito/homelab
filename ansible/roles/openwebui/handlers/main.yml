@@ -1,0 +1,5 @@
+---
+- name: Recreate open-webui
+  community.docker.docker_compose_v2:
+    project_src: "{{ openwebui_dir }}"
+    state: present

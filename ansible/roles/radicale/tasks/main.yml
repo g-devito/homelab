@@ -40,3 +40,9 @@
   community.docker.docker_compose_v2:
     project_src: /opt/homelab/radicale
     state: present
+
+# Leftover from the first deployment, before the file was renamed compose.yaml.
+- name: Remove the old Radicale compose file
+  file:
+    path: /opt/homelab/radicale/docker-compose.yml
+    state: absent

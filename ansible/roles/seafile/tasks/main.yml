@@ -9,55 +9,62 @@
       - seafile_server_hostname is defined
     fail_msg: "Missing one or more required Seafile variables. Define them in Ansible Vault."
 
-- name: Crea directory principali per Seafile sotto /opt/homelab
-  file:
-    path: /opt/homelab/seafile/{{ item }}
+- name: Create Seafile directories under /opt/homelab
+  ansible.builtin.file:
+    path: "{{ seafile_dir }}/{{ item.name }}"
     state: directory
-    owner: root
-    group: root
-    mode: '0755'
+    owner: "{{ item.owner }}"
+    group: "{{ item.owner }}"
+    mode: "0755"
   loop:
-    - data
-    - db
+    - { name: data, owner: 0 }
+    # MariaDB runs as uid 999 inside its container and must own its datadir.
+    - { name: db, owner: 999 }
+  loop_control:
+    label: "{{ item.name }}"
 
-- name: Copia il docker-compose per Seafile
-  template:
+- name: Deploy Seafile docker-compose file
+  ansible.builtin.template:
     src: docker-compose.yml.j2
-    dest: /opt/homelab/seafile/docker-compose.yml
+    dest: "{{ seafile_dir }}/docker-compose.yml"
+    mode: "0600"
 
-- name: Avvia il servizio Seafile
+- name: Start Seafile
   community.docker.docker_compose_v2:
-    project_src: /opt/homelab/seafile
+    project_src: "{{ seafile_dir }}"
     state: present
-    pull: always
 
 - name: Wait for seahub settings file to be created by Seafile bootstrap
   ansible.builtin.wait_for:
-    path: /opt/homelab/seafile/data/seafile/conf/seahub_settings.py
+    path: "{{ seafile_dir }}/data/seafile/conf/seahub_settings.py"
     timeout: 180
 
 - name: Force HTTPS service URL for Seafile
   ansible.builtin.lineinfile:
-    path: /opt/homelab/seafile/data/seafile/conf/seahub_settings.py
+    path: "{{ seafile_dir }}/data/seafile/conf/seahub_settings.py"
     regexp: '^SERVICE_URL = '
     line: 'SERVICE_URL = "https://{{ seafile_server_hostname }}"'
+  notify: Restart seafile
 
 - name: Force HTTPS file server root for Seafile
   ansible.builtin.lineinfile:
-    path: /opt/homelab/seafile/data/seafile/conf/seahub_settings.py
+    path: "{{ seafile_dir }}/data/seafile/conf/seahub_settings.py"
     regexp: '^FILE_SERVER_ROOT = '
     line: 'FILE_SERVER_ROOT = "https://{{ seafile_server_hostname }}/seafhttp"'
+  notify: Restart seafile
 
 - name: Add reverse-proxy CSRF settings for Seafile
   ansible.builtin.blockinfile:
-    path: /opt/homelab/seafile/data/seafile/conf/seahub_settings.py
+    path: "{{ seafile_dir }}/data/seafile/conf/seahub_settings.py"
     marker: "# {mark} ANSIBLE MANAGED SEAFILE REVERSE PROXY"
     block: |
       USE_X_FORWARDED_HOST = True
       SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
       CSRF_TRUSTED_ORIGINS = ['https://{{ seafile_server_hostname }}']
+  notify: Restart seafile
 
-- name: Restart Seafile stack after settings update
-  community.docker.docker_compose_v2:
-    project_src: /opt/homelab/seafile
-    state: restarted
+# A hand-written override once added these networks; the template has them now.
+- name: Remove the old manual network override
+  ansible.builtin.file:
+    path: /home/gio/seafile-network-fix.override.yml
+    state: absent

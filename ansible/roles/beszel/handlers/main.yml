@@ -1,0 +1,11 @@
+---
+- name: Recreate beszel
+  community.docker.docker_compose_v2:
+    project_src: "{{ beszel_data_dir }}"
+    state: present
+
+- name: Restart beszel-agent
+  ansible.builtin.systemd:
+    name: beszel-agent
+    state: restarted
+    daemon_reload: true

@@ -1,4 +1,4 @@
 #!/bin/bash
 # restic against the B2 repository, e.g. `rcloud snapshots`
 set -a; . /etc/autorestic/env; set +a
-exec restic -r b2:{{ autorestic_b2_path }} "$@"
+exec restic -r s3:{{ autorestic_b2_s3_url }} "$@"
