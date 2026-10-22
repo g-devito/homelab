@@ -1,4 +1,10 @@
 ---
+# Never create the library folders on the VM disk under an unmounted /mnt/media.
+- name: Check that the media disk is mounted
+  ansible.builtin.command: mountpoint -q {{ audiobookshelf_media_mount }}
+  changed_when: false
+  check_mode: false
+
 - name: Create Audiobookshelf directories
   ansible.builtin.file:
     path: "{{ item }}"

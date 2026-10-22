@@ -3,9 +3,11 @@
 audiobookshelf_version: "2.37.1"
 audiobookshelf_dir: /opt/homelab/audiobookshelf
 audiobookshelf_domain: books.gionet.eu
-# Library folders. Move these to the big disk with the data transfer, then change the paths here.
-audiobookshelf_audiobooks_dir: "{{ audiobookshelf_dir }}/library/audiobooks"
-audiobookshelf_books_dir: "{{ audiobookshelf_dir }}/library/books"
+# Library folders live on the media disk next to Film and Serie (not backed up, like them).
+# Config and metadata stay under audiobookshelf_dir and are part of the /opt/homelab backup.
+audiobookshelf_media_mount: "{{ media_mount_point | default('/mnt/media') }}"
+audiobookshelf_audiobooks_dir: "{{ audiobookshelf_media_mount }}/Audiolibri"
+audiobookshelf_books_dir: "{{ audiobookshelf_media_mount }}/Libri"
 # Only these networks may reach it through Traefik; an empty list makes it public.
 audiobookshelf_allowed_ranges:
   - 192.168.1.0/24
