@@ -1,0 +1,12 @@
+---
+- name: Restart adguard
+  community.docker.docker_compose_v2:
+    project_src: "{{ adguard_dir }}"
+    services: [adguard]
+    state: restarted
+
+- name: Recreate adguard
+  community.docker.docker_compose_v2:
+    project_src: "{{ adguard_dir }}"
+    state: present
+    recreate: always

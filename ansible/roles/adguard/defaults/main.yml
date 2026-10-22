@@ -1,0 +1,23 @@
+---
+# renovate: datasource=docker depName=adguard/adguardhome
+adguard_version: "v0.107.79"
+adguard_dir: /opt/homelab/adguard
+adguard_lan_ip: "{{ ansible_host }}"
+adguard_domain: adguard.gionet.eu
+adguard_admin_user: gio
+# Only these networks may open the web UI through Traefik.
+adguard_allowed_ranges:
+  - 192.168.1.0/24
+adguard_upstream_dns:
+  - https://dns10.quad9.net/dns-query
+adguard_bootstrap_dns:
+  - 9.9.9.10
+  - 149.112.112.10
+# The router, for reverse lookups of LAN devices.
+adguard_local_ptr: 192.168.1.1
+# Every name below resolves to the server, where Traefik routes it by host name.
+adguard_rewrites:
+  - { domain: "*.gionet.eu", answer: "{{ adguard_lan_ip }}" }
+adguard_filters:
+  - { id: 1, name: AdGuard DNS filter, url: "https://adguardteam.github.io/HostlistsRegistry/assets/filter_1.txt" }
+  - { id: 2, name: AdAway Default Blocklist, url: "https://adguardteam.github.io/HostlistsRegistry/assets/filter_2.txt" }
