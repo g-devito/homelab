@@ -1,0 +1,11 @@
+---
+# renovate: datasource=docker depName=ghcr.io/advplyr/audiobookshelf
+audiobookshelf_version: "2.37.1"
+audiobookshelf_dir: /opt/homelab/audiobookshelf
+audiobookshelf_domain: books.gionet.eu
+# Library folders. Move these to the big disk with the data transfer, then change the paths here.
+audiobookshelf_audiobooks_dir: "{{ audiobookshelf_dir }}/library/audiobooks"
+audiobookshelf_books_dir: "{{ audiobookshelf_dir }}/library/books"
+# Only these networks may reach it through Traefik; an empty list makes it public.
+audiobookshelf_allowed_ranges:
+  - 192.168.1.0/24

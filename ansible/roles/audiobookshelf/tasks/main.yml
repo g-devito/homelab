@@ -1,0 +1,28 @@
+---
+- name: Create Audiobookshelf directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "1000"
+    group: "1000"
+    mode: "0755"
+  loop:
+    - "{{ audiobookshelf_dir }}"
+    - "{{ audiobookshelf_dir }}/config"
+    - "{{ audiobookshelf_dir }}/metadata"
+    - "{{ audiobookshelf_audiobooks_dir }}"
+    - "{{ audiobookshelf_books_dir }}"
+
+- name: Deploy Audiobookshelf docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ audiobookshelf_dir }}/docker-compose.yml"
+    owner: "1000"
+    group: "1000"
+    mode: "0644"
+  notify: Recreate audiobookshelf
+
+- name: Start Audiobookshelf
+  community.docker.docker_compose_v2:
+    project_src: "{{ audiobookshelf_dir }}"
+    state: present

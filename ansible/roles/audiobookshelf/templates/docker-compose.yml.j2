@@ -1,0 +1,32 @@
+services:
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:{{ audiobookshelf_version }}
+    container_name: audiobookshelf
+    user: "1000:1000"
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Rome
+    volumes:
+      - {{ audiobookshelf_dir }}/config:/config
+      - {{ audiobookshelf_dir }}/metadata:/metadata
+      - {{ audiobookshelf_audiobooks_dir }}:/audiobooks
+      - {{ audiobookshelf_books_dir }}:/books
+    labels:
+      # Stopped during backups so its SQLite database is copied at rest.
+      - "backup.manage=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.books.rule=Host(`{{ audiobookshelf_domain }}`)"
+      - "traefik.http.routers.books.entrypoints=https"
+      - "traefik.http.routers.books.tls.certresolver=letsencrypt"
+      - "traefik.http.services.books.loadbalancer.server.port=80"
+      - "traefik.docker.network=traefik-proxy"
+{% if audiobookshelf_allowed_ranges | length > 0 %}
+      - "traefik.http.routers.books.middlewares=books-lan@docker"
+      - "traefik.http.middlewares.books-lan.ipallowlist.sourcerange={{ audiobookshelf_allowed_ranges | join(',') }}"
+{% endif %}
+    networks:
+      - traefik-proxy
+
+networks:
+  traefik-proxy:
+    external: true
