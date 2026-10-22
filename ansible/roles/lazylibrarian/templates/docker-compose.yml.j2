@@ -1,0 +1,33 @@
+services:
+  lazylibrarian:
+    image: lscr.io/linuxserver/lazylibrarian:{{ lazylibrarian_version }}
+    container_name: lazylibrarian
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Rome
+    volumes:
+      - {{ lazylibrarian_dir }}/config:/config
+{% for v in lazylibrarian_volumes %}
+      - {{ v }}
+{% endfor %}
+    labels:
+      # Stopped during backups so its SQLite database is copied at rest.
+      - "backup.manage=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.lazylibrarian.rule=Host(`{{ lazylibrarian_domain }}`)"
+      - "traefik.http.routers.lazylibrarian.entrypoints=https"
+      - "traefik.http.routers.lazylibrarian.tls.certresolver=letsencrypt"
+      - "traefik.http.services.lazylibrarian.loadbalancer.server.port=5299"
+      - "traefik.docker.network=traefik-proxy"
+{% if lazylibrarian_allowed_ranges | length > 0 %}
+      - "traefik.http.routers.lazylibrarian.middlewares=lazylibrarian-lan@docker"
+      - "traefik.http.middlewares.lazylibrarian-lan.ipallowlist.sourcerange={{ lazylibrarian_allowed_ranges | join(',') }}"
+{% endif %}
+    networks:
+      - traefik-proxy
+
+networks:
+  traefik-proxy:
+    external: true
