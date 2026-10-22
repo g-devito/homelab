@@ -111,6 +111,16 @@
   register: jellyfin_folders
   check_mode: false
 
+# Without the media disk (disaster recovery, disk unplugged) the folders do not exist and Jellyfin
+# answers 400: skip those libraries instead of aborting the whole play.
+- name: Check that the library folders exist on the media disk
+  ansible.builtin.stat:
+    path: "{{ jellyfin_media_dir }}/{{ item.path | basename }}"
+  register: jellyfin_library_dirs
+  loop: "{{ jellyfin_libraries }}"
+  loop_control:
+    label: "{{ item.name }}"
+
 - name: Create missing libraries
   ansible.builtin.uri:
     url: "http://{{ jellyfin_lan_bind }}/Library/VirtualFolders?name={{ item.name | urlencode }}&collectionType={{ item.type }}&paths={{ item.path | urlencode }}&refreshLibrary=true"
@@ -124,7 +134,7 @@
         MetadataCountryCode: "{{ jellyfin_metadata_country }}"
         EnableRealtimeMonitor: true
     status_code: [200, 204]
-  loop: "{{ jellyfin_libraries }}"
+  loop: "{{ jellyfin_library_dirs.results | selectattr('stat.exists') | map(attribute='item') | list }}"
   loop_control:
     label: "{{ item.name }}"
   when: item.name not in (jellyfin_folders.json | map(attribute='Name') | list)
