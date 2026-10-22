@@ -1,10 +1,10 @@
-# Debian 13 cloud image, downloaded once on the node and used as the root disk of
-# every VM created from scratch.
+# Debian 13 cloud image, downloaded once on the node (content type "import") and imported as
+# the root disk of every VM created from scratch through the API (no SSH to the node needed).
 resource "proxmox_download_file" "debian13" {
   node_name    = var.node
   datastore_id = "local"
-  content_type = "iso"
-  file_name    = "debian-13-genericcloud-amd64.img"
+  content_type = "import"
+  file_name    = "debian-13-genericcloud-amd64.qcow2"
   url          = "https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2"
 }
 
@@ -36,7 +36,7 @@ resource "proxmox_virtual_environment_vm" "vm" {
   # scsi0: system disk on the NVMe thin pool
   disk {
     datastore_id = "local-lvm"
-    file_id      = proxmox_download_file.debian13.id
+    import_from  = proxmox_download_file.debian13.id
     interface    = "scsi0"
     iothread     = true
     size         = each.value.root_disk_gb
