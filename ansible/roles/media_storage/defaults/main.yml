@@ -16,3 +16,11 @@ media_disk_smart_schedule: "(S/../.././02|L/../../7/04)"
 media_disk_usb_quirks:
   - "18a5:0411:u"   # Verbatim Portable USB3.0 (HGST 500G)
   - "0bc2:2038:u"   # Seagate Expansion (ST6000DM003)
+
+# Directories that keep their historical path under /opt/homelab but live on the media disk
+# (music library and the shared downloads dir, hardlinked to each other). Containers and the
+# backup (/opt/homelab) are unchanged. If the media disk is missing at boot the bind mount
+# is skipped and the containers see an empty directory, like the media library.
+media_bind_mounts:
+  - { src: "{{ media_mount_point }}/Musica", path: /opt/homelab/navidrome/music }
+  - { src: "{{ media_mount_point }}/downloads", path: /opt/homelab/downloads }

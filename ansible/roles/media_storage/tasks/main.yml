@@ -21,6 +21,26 @@
     opts: "{{ media_disk_options }}"
     state: mounted
 
+- name: Create the bind mount targets
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    mode: "0755"
+  loop: "{{ media_bind_mounts }}"
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: Bind-mount music and downloads from the media disk
+  ansible.posix.mount:
+    path: "{{ item.path }}"
+    src: "{{ item.src }}"
+    fstype: none
+    opts: "bind,nofail,x-systemd.requires-mounts-for={{ media_mount_point }}"
+    state: mounted
+  loop: "{{ media_bind_mounts }}"
+  loop_control:
+    label: "{{ item.path }}"
+
 - name: Give the USB media disk a stable name
   ansible.builtin.template:
     src: 99-media-disk.rules.j2
