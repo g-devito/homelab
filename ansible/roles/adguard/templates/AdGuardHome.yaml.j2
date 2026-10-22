@@ -1,0 +1,55 @@
+# {{ ansible_managed }}
+http:
+  address: 0.0.0.0:3000
+  session_ttl: 720h
+users:
+  - name: {{ adguard_admin_user }}
+    password: "{{ adguard_admin_password_hash }}"
+auth_attempts: 5
+block_auth_min: 15
+dns:
+  bind_hosts:
+    - 0.0.0.0
+  port: 53
+  upstream_dns:
+{% for u in adguard_upstream_dns %}
+    - {{ u }}
+{% endfor %}
+  bootstrap_dns:
+{% for b in adguard_bootstrap_dns %}
+    - {{ b }}
+{% endfor %}
+  upstream_mode: load_balance
+  cache_enabled: true
+  cache_size: 4194304
+  cache_optimistic: true
+  ratelimit: 0
+  blocking_mode: default
+  enable_dnssec: false
+  local_ptr_upstreams:
+    - {{ adguard_local_ptr }}
+  use_private_ptr_resolvers: true
+filtering:
+  filtering_enabled: true
+  protection_enabled: true
+  rewrites_enabled: true
+  rewrites:
+{% for r in adguard_rewrites %}
+    - domain: "{{ r.domain }}"
+      answer: {{ r.answer }}
+      enabled: true
+{% endfor %}
+filters:
+{% for f in adguard_filters %}
+  - enabled: true
+    url: {{ f.url }}
+    name: {{ f.name }}
+    id: {{ f.id }}
+{% endfor %}
+querylog:
+  enabled: true
+  interval: 168h
+statistics:
+  enabled: true
+  interval: 168h
+schema_version: 34

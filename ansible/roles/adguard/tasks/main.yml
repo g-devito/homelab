@@ -1,0 +1,43 @@
+---
+- name: Validate required AdGuard secret
+  ansible.builtin.assert:
+    that: adguard_admin_password_hash is defined
+    fail_msg: "Set adguard_admin_password_hash (bcrypt) in Ansible Vault."
+  no_log: true
+
+- name: Create AdGuard directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ adguard_dir }}"
+    - "{{ adguard_dir }}/conf"
+    - "{{ adguard_dir }}/work"
+
+# Changes made in the web UI are overwritten by the next deploy: this file is the source of truth.
+- name: Deploy AdGuard Home config
+  ansible.builtin.template:
+    src: AdGuardHome.yaml.j2
+    dest: "{{ adguard_dir }}/conf/AdGuardHome.yaml"
+    owner: root
+    group: root
+    mode: "0600"
+  diff: false
+  notify: Restart adguard
+
+- name: Deploy AdGuard docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ adguard_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Recreate adguard
+
+- name: Start AdGuard Home
+  community.docker.docker_compose_v2:
+    project_src: "{{ adguard_dir }}"
+    state: present
