@@ -13,7 +13,7 @@ beszel_admin_email: "{{ owner_email }}"
 beszel_extra_filesystems: {}
 
 # Systems the hub polls (inventory hosts running an agent).
-beszel_systems: "{{ groups['homelab'] + groups['proxmox'] }}"
+beszel_systems: "{{ groups['homelab'] + (groups['proxmox'] | default([])) }}"
 # Alerts per system: value = threshold, min = minutes it must last before mailing.
 # Only sustained, actionable problems; disk space and SMART are also covered
 # by the alerting role.
