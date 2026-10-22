@@ -20,3 +20,11 @@ proxmox_vm_usb: []
 # USB disks are passed through to VMs. If the host's own usb-storage/uas driver
 # also grabs them, host and guest read the disk at once and I/O aborts.
 proxmox_block_usb_storage: true
+
+# Disk behind the `data-1tb` directory storage (VM disk images, local restic repo).
+# Mounted by UUID with nofail so a missing or swapped disk never blocks the boot.
+# Never formatted by this role: after changing the disk, `mkfs.ext4 -L data` it,
+# put its UUID in group_vars/proxmox.yml and run the role.
+proxmox_data_disk_uuid: ""
+proxmox_data_mount: /mnt/data
+proxmox_data_storage_id: data-1tb
