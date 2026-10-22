@@ -172,3 +172,29 @@
   loop: "{{ proxmox_vm_cfg.results }}"
   loop_control:
     label: "{{ item.item.vmid }} {{ item.item.slot }}"
+
+- name: Mount the VM data disk (nofail, by UUID)
+  ansible.posix.mount:
+    path: "{{ proxmox_data_mount }}"
+    src: "UUID={{ proxmox_data_disk_uuid }}"
+    fstype: ext4
+    opts: "defaults,nofail,x-systemd.device-timeout=15s"
+    passno: "2"
+    state: mounted
+  when: proxmox_data_disk_uuid | length > 0
+
+- name: Read the configured Proxmox storages
+  ansible.builtin.command: pvesm status
+  register: proxmox_storages
+  changed_when: false
+  check_mode: false
+  when: proxmox_data_disk_uuid | length > 0
+
+- name: Register the data disk as a Proxmox directory storage
+  ansible.builtin.command: >-
+    pvesm add dir {{ proxmox_data_storage_id }}
+    --path {{ proxmox_data_mount }} --content images --is_mountpoint 1
+  when:
+    - proxmox_data_disk_uuid | length > 0
+    - proxmox_storages.stdout is not search('^' ~ proxmox_data_storage_id ~ ' ', multiline=True)
+  changed_when: true
