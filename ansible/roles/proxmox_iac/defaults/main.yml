@@ -11,13 +11,11 @@ proxmox_iac_privs: >-
   VM.Allocate VM.Audit VM.Clone VM.Config.CDROM VM.Config.Cloudinit VM.Config.CPU
   VM.Config.Disk VM.Config.HWType VM.Config.Memory VM.Config.Network VM.Config.Options
   VM.Console VM.GuestAgent.Audit VM.PowerMgmt
-# Pool the VMs created by OpenTofu live in. Proxmox deletes the ACL of a VM when the VM is
-# destroyed, so a per-VM grant does not survive a rebuild; a pool ACL does.
-proxmox_iac_pool: iac
-# Paths the role is granted on. The production VM (101) already exists and is imported, not created.
+# Granted on /vms (every VM, existing and future): Proxmox deletes the ACL of a single VM when it
+# is destroyed, and during creation the VM is not yet in a pool, so neither per-VM nor pool grants
+# work for a VM that OpenTofu rebuilds. The role only has VM and storage privileges.
 proxmox_iac_acl_paths:
-  - /vms/101
-  - "/pool/{{ proxmox_iac_pool }}"
+  - /vms
   - /storage/local
   - /storage/local-lvm
   - /storage/data-1tb

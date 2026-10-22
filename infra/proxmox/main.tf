@@ -18,7 +18,6 @@ resource "proxmox_virtual_environment_vm" "vm" {
   scsi_hardware = "virtio-scsi-single"
   machine       = "pc"
   tags          = ["iac"]
-  pool_id       = "iac"
 
   agent {
     enabled = true
