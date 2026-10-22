@@ -1,4 +1,5 @@
 ---
+# renovate: datasource=docker depName=ghcr.io/open-webui/open-webui
 openwebui_version: v0.11.0
 openwebui_dir: /opt/homelab/openwebui
 openwebui_hostname: ai.gionet.eu

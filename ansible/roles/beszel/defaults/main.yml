@@ -1,4 +1,5 @@
 ---
+# renovate: datasource=docker depName=henrygd/beszel
 beszel_version: "0.21.0"
 beszel_data_dir: /opt/homelab/beszel
 # Hub runs on the VM, LAN only. Agents listen on their host's LAN address;
