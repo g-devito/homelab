@@ -2,6 +2,7 @@
   hosts: proxmox
   roles:
     - { role: proxmox_host, tags: [proxmox] }
+    - { role: proxmox_iac, tags: [proxmox_iac] }
     - { role: alerting, tags: [alerting] }
 
 - name: Homelab services
