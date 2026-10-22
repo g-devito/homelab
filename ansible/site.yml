@@ -23,6 +23,7 @@
     - { role: arr_stack, tags: [arr_stack] }
     - { role: soularr, tags: [soularr] }
     - { role: openwebui, tags: [openwebui] }
+    - { role: audiobookshelf, tags: [audiobookshelf] }
     - { role: autorestic, tags: [autorestic] }
 
 # Separate plays: the Proxmox agent needs the key the hub generates on the VM.
