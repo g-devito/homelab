@@ -6,8 +6,6 @@
     pveum user list --output-format json
     echo '#'
     pveum user token list {{ proxmox_iac_user | quote }} --output-format json 2>/dev/null || echo '[]'
-    echo '#'
-    pveum pool list --output-format json
   register: proxmox_iac_state
   changed_when: false
   check_mode: false
@@ -34,12 +32,7 @@
   when: proxmox_iac_state.stdout.split('#')[1] is not search('"userid":"' ~ proxmox_iac_user ~ '"')
   changed_when: true
 
-- name: Create the pool for OpenTofu VMs
-  ansible.builtin.command: pveum pool add {{ proxmox_iac_pool }} --comment "VMs managed by OpenTofu"
-  when: proxmox_iac_state.stdout.split('#')[3] is not search('"poolid":"' ~ proxmox_iac_pool ~ '"')
-  changed_when: true
-
-- name: Grant the role on the VM, pool and storage paths only
+- name: Grant the role on the VMs and storage paths only
   ansible.builtin.command: pveum acl modify {{ item }} --users {{ proxmox_iac_user }} --roles {{ proxmox_iac_role }}
   loop: "{{ proxmox_iac_acl_paths }}"
   changed_when: false
