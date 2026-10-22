@@ -137,10 +137,13 @@
   no_log: true
   # Idempotent upsert (unique by name); also needed in --check to know the ping URL.
   check_mode: false
+  # A DR rehearsal VM (dr_test) must not create or ping production checks.
+  when: not (dr_test | default(false))
 
 - name: Remember the heartbeat ping URL
   ansible.builtin.set_fact:
     heartbeat_ping_url: "{{ alerting_hc_check.json.ping_url }}"
+  when: not (dr_test | default(false))
 
 - name: Install heartbeat units
   ansible.builtin.template:
@@ -151,19 +154,18 @@
     - heartbeat.service
     - heartbeat.timer
   register: alerting_heartbeat_units
+  when: not (dr_test | default(false))
 
 - name: Reload systemd after unit changes
   ansible.builtin.systemd:
     daemon_reload: true
-  when: alerting_disk_units.changed or alerting_heartbeat_units.changed
+  when: alerting_disk_units.changed or (alerting_heartbeat_units.changed | default(false))
 
 - name: Enable alerting timers
   ansible.builtin.systemd:
     name: "{{ item }}"
     enabled: true
     state: started
-  loop:
-    - disk-alert.timer
-    - heartbeat.timer
+  loop: "{{ ['disk-alert.timer'] if (dr_test | default(false)) else ['disk-alert.timer', 'heartbeat.timer'] }}"
   # In --check the unit files were not written yet.
   ignore_errors: "{{ ansible_check_mode }}"

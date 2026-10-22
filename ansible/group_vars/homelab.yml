@@ -3,3 +3,7 @@ alerting_mail_relay: false
 
 beszel_extra_filesystems:
   media: /mnt/media
+
+# DR rehearsal switch: true only on the throwaway VM (inventory host var). Turns off backups,
+# heartbeat and restore-test so it never touches the shared B2 repository or healthchecks.
+dr_test: false

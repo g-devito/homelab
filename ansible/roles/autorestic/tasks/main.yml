@@ -67,11 +67,13 @@
 - name: Flush handlers to apply systemd changes immediately
   meta: flush_handlers
 
+# A DR rehearsal VM (dr_test) shares the B2 repository and the healthchecks with production:
+# it must never back up, forget or prune, so its timers stay off.
 - name: Enable and Start Autorestic Timers
   systemd:
     name: "{{ item }}"
-    enabled: yes
-    state: started
+    enabled: "{{ not (dr_test | default(false)) }}"
+    state: "{{ 'stopped' if (dr_test | default(false)) else 'started' }}"
   loop:
     - autorestic-local.timer
     - autorestic-cloud.timer
@@ -200,6 +202,7 @@
   become: false
   no_log: true
   changed_when: false
+  when: not (dr_test | default(false))
 
 - name: Ensure a healthchecks.io check exists for the restore test
   uri:
@@ -223,6 +226,7 @@
   become: false
   no_log: true
   check_mode: false
+  when: not (dr_test | default(false))
 
 - name: Install the restore test
   template:
@@ -236,8 +240,9 @@
   loop_control:
     label: "{{ item.dest }}"
   vars:
-    autorestic_restore_test_ping_url: "{{ autorestic_restore_check.json.ping_url }}"
+    autorestic_restore_test_ping_url: "{{ autorestic_restore_check.json.ping_url | default('') }}"
   notify: reload systemd
+  when: not (dr_test | default(false))
 
 - name: Apply systemd changes for the restore test
   meta: flush_handlers
@@ -247,3 +252,4 @@
     name: restore-test.timer
     enabled: true
     state: started
+  when: not (dr_test | default(false))
