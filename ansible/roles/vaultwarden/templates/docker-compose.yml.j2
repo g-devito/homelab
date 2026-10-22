@@ -1,0 +1,37 @@
+services:
+  vaultwarden:
+    image: vaultwarden/server:{{ vaultwarden_version }}
+    container_name: vaultwarden
+    user: "1000:1000"
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Rome
+      - DOMAIN=https://{{ vaultwarden_domain }}
+      - SIGNUPS_ALLOWED={{ vaultwarden_signups_allowed | lower }}
+      - INVITATIONS_ALLOWED=false
+      - SHOW_PASSWORD_HINT=false
+      - LOG_LEVEL=warn
+{% if vaultwarden_admin_token_hash is defined %}
+      - ADMIN_TOKEN={{ vaultwarden_admin_token_hash | replace('$', '$$') }}
+{% endif %}
+    volumes:
+      - {{ vaultwarden_dir }}/data:/data
+    labels:
+      # Stopped during backups so the SQLite database is copied at rest.
+      - "backup.manage=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.vault.rule=Host(`{{ vaultwarden_domain }}`)"
+      - "traefik.http.routers.vault.entrypoints=https"
+      - "traefik.http.routers.vault.tls.certresolver=letsencrypt"
+      - "traefik.http.services.vault.loadbalancer.server.port=80"
+      - "traefik.docker.network=traefik-proxy"
+{% if vaultwarden_allowed_ranges | length > 0 %}
+      - "traefik.http.routers.vault.middlewares=vault-lan@docker"
+      - "traefik.http.middlewares.vault-lan.ipallowlist.sourcerange={{ vaultwarden_allowed_ranges | join(',') }}"
+{% endif %}
+    networks:
+      - traefik-proxy
+
+networks:
+  traefik-proxy:
+    external: true

@@ -1,0 +1,13 @@
+---
+vaultwarden_version: "1.37.4"
+vaultwarden_dir: /opt/homelab/vaultwarden
+vaultwarden_domain: vault.gionet.eu
+# Only these networks may reach the vault through Traefik. Add the VPN range
+# once remote access is decided; an empty list makes it public.
+vaultwarden_allowed_ranges:
+  - 192.168.1.0/24
+# Leave false. Set true for ONE deploy to register your account, then false again.
+vaultwarden_signups_allowed: false
+# Optional: Argon2 hash from `docker run --rm -it vaultwarden/server /vaultwarden hash`.
+# Without it the /admin page stays disabled.
+# vaultwarden_admin_token_hash: "$argon2id$..."
