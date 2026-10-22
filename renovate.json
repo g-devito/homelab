@@ -7,19 +7,25 @@
   "dependencyDashboard": true,
   "enabledManagers": ["custom.regex", "docker-compose", "github-actions"],
   "docker-compose": {
-    "fileMatch": ["ansible/roles/.+/templates/.+\\.ya?ml\\.j2$"]
+    "managerFilePatterns": [
+      "/ansible/roles/.+/templates/.+\\.ya?ml\\.j2$/"
+    ]
   },
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["ansible/roles/.+/defaults/main\\.yml$"],
+      "managerFilePatterns": [
+        "/ansible/roles/.+/defaults/main\\.yml$/"
+      ],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>[^\\s]+)\\n[a-z_]+_version: \"?(?<currentValue>[^\"\\s]+)\"?"
       ]
     },
     {
       "customType": "regex",
-      "fileMatch": ["ansible/roles/.+/defaults/main\\.yml$"],
+      "managerFilePatterns": [
+        "/ansible/roles/.+/defaults/main\\.yml$/"
+      ],
       "matchStrings": [
         "[a-z_]+_image: (?<depName>[a-z0-9./-]+):(?<currentValue>[^\\s\"]+)"
       ],
