@@ -1,6 +1,6 @@
 services:
   radicale:
-    image: ghcr.io/kozea/radicale:3.6.1
+    image: ghcr.io/kozea/radicale:3.8.3
     container_name: radicale
     restart: always
     networks:
