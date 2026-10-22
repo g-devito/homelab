@@ -15,6 +15,18 @@
   when: proxmox_iac_state.stdout.split('#')[0] is not search('"roleid":"' ~ proxmox_iac_role ~ '"')
   changed_when: true
 
+- name: Align the OpenTofu role privileges
+  ansible.builtin.command: pveum role modify {{ proxmox_iac_role }} -privs "{{ proxmox_iac_privs }}"
+  vars:
+    proxmox_iac_current_roles: "{{ proxmox_iac_state.stdout.split('#')[0] | from_json }}"
+    proxmox_iac_current_privs: >-
+      {{ (proxmox_iac_current_roles | selectattr('roleid', 'equalto', proxmox_iac_role)
+          | map(attribute='privs') | first | default('')).split(',') | map('trim') | sort }}
+  when:
+    - proxmox_iac_state.stdout.split('#')[0] is search('"roleid":"' ~ proxmox_iac_role ~ '"')
+    - proxmox_iac_current_privs != (proxmox_iac_privs.split() | sort)
+  changed_when: true
+
 - name: Create the OpenTofu user
   ansible.builtin.command: pveum user add {{ proxmox_iac_user }} --comment "OpenTofu"
   when: proxmox_iac_state.stdout.split('#')[1] is not search('"userid":"' ~ proxmox_iac_user ~ '"')
