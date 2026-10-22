@@ -1,0 +1,42 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "schedule": ["before 8am on monday"],
+  "timezone": "Europe/Rome",
+  "automerge": false,
+  "dependencyDashboard": true,
+  "enabledManagers": ["custom.regex", "docker-compose", "github-actions"],
+  "docker-compose": {
+    "fileMatch": ["ansible/roles/.+/templates/.+\\.ya?ml\\.j2$"]
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["ansible/roles/.+/defaults/main\\.yml$"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>[^\\s]+)\\n[a-z_]+_version: \"?(?<currentValue>[^\"\\s]+)\"?"
+      ]
+    },
+    {
+      "customType": "regex",
+      "fileMatch": ["ansible/roles/.+/defaults/main\\.yml$"],
+      "matchStrings": [
+        "[a-z_]+_image: (?<depName>[a-z0-9./-]+):(?<currentValue>[^\\s\"]+)"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Stateful or risky upgrades are done by hand with a snapshot, never from a bot PR.",
+      "matchPackageNames": ["traefik", "mariadb", "ghcr.io/immich-app/postgres", "seafileltd/seafile-mc"],
+      "matchUpdateTypes": ["major", "minor"],
+      "enabled": false
+    },
+    {
+      "description": "Immich server and machine-learning must move together.",
+      "matchPackageNames": ["ghcr.io/immich-app/immich-server", "ghcr.io/immich-app/immich-machine-learning"],
+      "groupName": "immich"
+    }
+  ]
+}
