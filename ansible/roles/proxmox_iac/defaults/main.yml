@@ -7,7 +7,7 @@ proxmox_iac_role: TofuVM
 proxmox_iac_token_id: iac
 proxmox_iac_privs: >-
   Datastore.AllocateSpace Datastore.AllocateTemplate Datastore.Audit
-  SDN.Use Sys.Audit
+  SDN.Use Sys.Audit Sys.AccessNetwork
   VM.Allocate VM.Audit VM.Clone VM.Config.CDROM VM.Config.Cloudinit VM.Config.CPU
   VM.Config.Disk VM.Config.HWType VM.Config.Memory VM.Config.Network VM.Config.Options
   VM.Console VM.GuestAgent.Audit VM.PowerMgmt
