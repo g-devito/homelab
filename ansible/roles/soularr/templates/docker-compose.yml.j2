@@ -17,6 +17,8 @@ services:
       - SLSKD_SLSK_USERNAME={{ slskd_soulseek_username }}
       - SLSKD_SLSK_PASSWORD={{ slskd_soulseek_password | replace('$', '$$') }}
       - SLSKD_API_KEY=role=Administrator;cidr=172.16.0.0/12;{{ slskd_api_key }}
+      - SLSKD_USERNAME={{ slskd_web_username }}
+      - SLSKD_PASSWORD={{ slskd_web_password | replace('$', '$$') }}
       - SLSKD_DOWNLOADS_DIR=/downloads
     volumes:
       - {{ slskd_dir }}:/app

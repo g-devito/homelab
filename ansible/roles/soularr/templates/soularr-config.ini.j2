@@ -27,7 +27,8 @@ minimum_filename_match_ratio = 0.5
 allowed_filetypes = flac,mp3
 ignored_users =
 search_type = incrementing_page
-number_of_albums_to_grab = 10
+# Few at a time: bursts of imports make LRCLIB rate-limit the lyrics script.
+number_of_albums_to_grab = 3
 search_source = missing
 
 [Download Settings]

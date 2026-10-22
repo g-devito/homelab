@@ -5,10 +5,13 @@
       - slskd_soulseek_username is defined
       - slskd_soulseek_password is defined
       - slskd_api_key is defined
+      - slskd_web_username is defined
+      - slskd_web_password is defined
+      - slskd_web_password | length >= 16
       - slskd_api_key | length >= 16
     fail_msg: >-
-      Set slskd_soulseek_username, slskd_soulseek_password and slskd_api_key
-      (16+ chars) in Ansible Vault.
+      Set slskd_soulseek_username, slskd_soulseek_password, slskd_api_key
+      (16+ chars), slskd_web_username and slskd_web_password (16+ chars) in Ansible Vault.
   no_log: true
 
 - name: Create Soularr directories
