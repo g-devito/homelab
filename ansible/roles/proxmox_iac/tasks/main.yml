@@ -1,0 +1,46 @@
+---
+- name: Read the Proxmox roles, users and tokens
+  ansible.builtin.shell: |
+    pveum role list --output-format json
+    echo '#'
+    pveum user list --output-format json
+    echo '#'
+    pveum user token list {{ proxmox_iac_user | quote }} --output-format json 2>/dev/null || echo '[]'
+  register: proxmox_iac_state
+  changed_when: false
+  check_mode: false
+
+- name: Create the OpenTofu role
+  ansible.builtin.command: pveum role add {{ proxmox_iac_role }} -privs "{{ proxmox_iac_privs }}"
+  when: proxmox_iac_state.stdout.split('#')[0] is not search('"roleid":"' ~ proxmox_iac_role ~ '"')
+  changed_when: true
+
+- name: Create the OpenTofu user
+  ansible.builtin.command: pveum user add {{ proxmox_iac_user }} --comment "OpenTofu"
+  when: proxmox_iac_state.stdout.split('#')[1] is not search('"userid":"' ~ proxmox_iac_user ~ '"')
+  changed_when: true
+
+- name: Grant the role on the VM and storage paths only
+  ansible.builtin.command: pveum acl modify {{ item }} --users {{ proxmox_iac_user }} --roles {{ proxmox_iac_role }}
+  loop: "{{ proxmox_iac_acl_paths }}"
+  changed_when: false
+
+- name: Create the API token
+  ansible.builtin.command: >-
+    pveum user token add {{ proxmox_iac_user }} {{ proxmox_iac_token_id }}
+    --privsep 0 --output-format json
+  register: proxmox_iac_token
+  no_log: true
+  when: proxmox_iac_state.stdout.split('#')[2] is not search('"tokenid":"' ~ proxmox_iac_token_id ~ '"')
+  changed_when: true
+
+# The secret is shown once by Proxmox. To rotate: `pveum user token remove tofu@pve iac`, rerun.
+- name: Keep the token secret on the controller
+  ansible.builtin.copy:
+    dest: "{{ proxmox_iac_token_file }}"
+    content: "{{ proxmox_iac_user }}!{{ proxmox_iac_token_id }}={{ (proxmox_iac_token.stdout | from_json).value }}\n"
+    mode: "0600"
+  delegate_to: localhost
+  become: false
+  no_log: true
+  when: proxmox_iac_token is changed

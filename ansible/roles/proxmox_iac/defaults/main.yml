@@ -1,0 +1,24 @@
+---
+# API user for OpenTofu (infra/proxmox). Least privilege: it can manage only the VMs listed
+# in proxmox_iac_acl_paths and the storages they use. No Sys.Modify, no users, no pools,
+# no storage definitions, no raw USB passthrough (root@pam only, done by Ansible).
+proxmox_iac_user: tofu@pve
+proxmox_iac_role: TofuVM
+proxmox_iac_token_id: iac
+proxmox_iac_privs: >-
+  Datastore.AllocateSpace Datastore.AllocateTemplate Datastore.Audit
+  SDN.Use Sys.Audit
+  VM.Allocate VM.Audit VM.Clone VM.Config.CDROM VM.Config.Cloudinit VM.Config.CPU
+  VM.Config.Disk VM.Config.HWType VM.Config.Memory VM.Config.Network VM.Config.Options
+  VM.Console VM.GuestAgent.Audit VM.PowerMgmt
+# Paths the role is granted on. VM ids: production (101) and the DR rehearsal (199).
+proxmox_iac_acl_paths:
+  - /vms/101
+  - /vms/199
+  - /storage/local
+  - /storage/local-lvm
+  - /storage/data-1tb
+  - /sdn/zones/localnetwork
+  - /nodes/pve
+# Written on the machine running Ansible (gitignored `secrets/` of the private ops repo).
+proxmox_iac_token_file: "{{ lookup('env', 'HOME') }}/claude_projects/homelab/secrets/pve-tofu-token"
