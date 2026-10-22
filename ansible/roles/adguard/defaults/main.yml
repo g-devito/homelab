@@ -8,11 +8,14 @@ adguard_admin_user: gio
 # Only these networks may open the web UI through Traefik.
 adguard_allowed_ranges:
   - 192.168.1.0/24
+# Quad9 is unreachable from this network (UDP times out, TCP is reset); Cloudflare and Google work.
 adguard_upstream_dns:
-  - https://dns10.quad9.net/dns-query
+  - https://cloudflare-dns.com/dns-query
+  - https://dns.google/dns-query
 adguard_bootstrap_dns:
-  - 9.9.9.10
-  - 149.112.112.10
+  - 1.1.1.1
+  - 1.0.0.1
+  - 8.8.8.8
 # The router, for reverse lookups of LAN devices.
 adguard_local_ptr: 192.168.1.1
 # Every name below resolves to the server, where Traefik routes it by host name.
