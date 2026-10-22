@@ -1,6 +1,6 @@
 # Debian 13 cloud image, downloaded once on the node and used as the root disk of
 # every VM created from scratch.
-resource "proxmox_virtual_environment_download_file" "debian13" {
+resource "proxmox_download_file" "debian13" {
   node_name    = var.node
   datastore_id = "local"
   content_type = "iso"
@@ -36,7 +36,7 @@ resource "proxmox_virtual_environment_vm" "vm" {
   # scsi0: system disk on the NVMe thin pool
   disk {
     datastore_id = "local-lvm"
-    file_id      = proxmox_virtual_environment_download_file.debian13.id
+    file_id      = proxmox_download_file.debian13.id
     interface    = "scsi0"
     iothread     = true
     size         = each.value.root_disk_gb
