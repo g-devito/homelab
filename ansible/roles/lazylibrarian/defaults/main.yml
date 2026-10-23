@@ -7,4 +7,5 @@ lazylibrarian_lan_ip: "{{ ansible_host }}"
 # Infrastructure only: this role deploys the container, its config dir, the LAN port and
 # the backup label. Library, download and provider settings are configured by the owner in the app,
 # and any extra bind mounts the owner wants go here (host:container[:mode]), e.g. in group_vars.
-lazylibrarian_volumes: []
+lazylibrarian_volumes:
+  - "{{ media_mount_point }}:/data:rslave"
