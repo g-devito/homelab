@@ -1,0 +1,18 @@
+services:
+  bookshelf:
+    image: ghcr.io/pennydreadful/bookshelf:{{ bookshelf_version }}
+    container_name: bookshelf
+    restart: unless-stopped
+    user: "1000:1000"
+    environment:
+      - TZ=Europe/Rome
+    volumes:
+      - {{ bookshelf_dir }}/config:/config
+{% for v in bookshelf_volumes %}
+      - {{ v }}
+{% endfor %}
+    ports:
+      - "{{ bookshelf_lan_ip }}:8787:8787"
+    labels:
+      # Stopped during backups so its SQLite database is copied at rest.
+      - "backup.manage=true"
