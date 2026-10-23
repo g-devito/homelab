@@ -6,8 +6,8 @@ audiobookshelf_domain: books.gionet.eu
 # Library folders live on the media disk next to Film and Serie (not backed up, like them).
 # Config and metadata stay under audiobookshelf_dir and are part of the /opt/homelab backup.
 audiobookshelf_media_mount: "{{ media_mount_point | default('/mnt/media') }}"
-audiobookshelf_audiobooks_dir: "{{ audiobookshelf_media_mount }}/Audiolibri"
-audiobookshelf_books_dir: "{{ audiobookshelf_media_mount }}/Libri"
+audiobookshelf_audiobooks_dir: "{{ audiobookshelf_media_mount }}/Audiobooks"
+audiobookshelf_books_dir: "{{ audiobookshelf_media_mount }}/Books"
 # Only these networks may reach it through Traefik; an empty list makes it public.
 audiobookshelf_allowed_ranges:
   - 192.168.1.0/24
