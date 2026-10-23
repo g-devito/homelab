@@ -12,6 +12,13 @@
     fstype: ext4
     state: mounted
 
+# The virtual disk can be larger than the filesystem (it was copied from a smaller one): grow it online.
+- name: Grow the filesystem to the size of its disk
+  community.general.filesystem:
+    dev: "/dev/disk/by-uuid/{{ disk_uuid }}"
+    fstype: ext4
+    resizefs: true
+
 - name: Create primary app data directory on SSD
   file:
     path: /opt/homelab
