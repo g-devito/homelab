@@ -62,7 +62,6 @@
         option: user_agent
         value: "{{ lazylibrarian_user_agent }}"
         no_extra_spaces: false
-        mode: preserve
 
     - name: Start LazyLibrarian again
       community.docker.docker_compose_v2:
