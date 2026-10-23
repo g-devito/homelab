@@ -1,0 +1,19 @@
+services:
+  lazylibrarian:
+    image: lscr.io/linuxserver/lazylibrarian:{{ lazylibrarian_version }}
+    container_name: lazylibrarian
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Rome
+    volumes:
+      - {{ lazylibrarian_dir }}/config:/config
+{% for v in lazylibrarian_volumes %}
+      - {{ v }}
+{% endfor %}
+    ports:
+      - "{{ lazylibrarian_lan_ip }}:5299:5299"
+    labels:
+      # Stopped during backups so its SQLite database is copied at rest.
+      - "backup.manage=true"
