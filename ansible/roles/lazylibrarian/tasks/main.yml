@@ -1,4 +1,10 @@
 ---
+# Never bind-mount an unmounted /mnt/media: the apps would write to the VM disk.
+- name: Check that the media disk is mounted
+  ansible.builtin.command: mountpoint -q {{ lazylibrarian_media_mount }}
+  changed_when: false
+  check_mode: false
+
 - name: Create LazyLibrarian directories
   ansible.builtin.file:
     path: "{{ item }}"

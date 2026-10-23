@@ -7,6 +7,10 @@ bookshelf_dir: /opt/homelab/bookshelf
 # Same model as the arr stack: published on the LAN address only, no public name, no Traefik route.
 bookshelf_lan_ip: "{{ ansible_host }}"
 # Infrastructure only: this role deploys the container, its config dir, the LAN port and
-# the backup label. Library, download and provider settings are configured by the owner in the app,
-# and any extra bind mounts the owner wants go here (host:container[:mode]), e.g. in group_vars.
-bookshelf_volumes: []
+# the backup label. Provider, download-client and library settings are configured in the app.
+# The media disk is mounted like in the arr stack (/mnt/media as /data) so every app sees the same
+# filesystem and hardlinks work; inside the app use /data/Books, /data/Audiobooks and /data/torrents.
+bookshelf_media_mount: "{{ media_mount_point | default('/mnt/media') }}"
+# Extra bind mounts go here (host:container[:mode]).
+bookshelf_volumes:
+  - "{{ bookshelf_media_mount }}:/data:rslave"
