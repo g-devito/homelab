@@ -1,0 +1,12 @@
+---
+# Bookshelf is the maintained Readarr fork (Readarr itself is retired upstream).
+# "hardcover" uses Hardcover metadata, "softcover" uses Goodreads metadata (Readarr database compatible).
+# renovate: datasource=docker depName=ghcr.io/pennydreadful/bookshelf
+bookshelf_version: "hardcover-v0.4.21.182"
+bookshelf_dir: /opt/homelab/bookshelf
+# Same model as the arr stack: published on the LAN address only, no public name, no Traefik route.
+bookshelf_lan_ip: "{{ ansible_host }}"
+# Infrastructure only: this role deploys the container, its config dir, the LAN port and
+# the backup label. Library, download and provider settings are configured by the owner in the app,
+# and any extra bind mounts the owner wants go here (host:container[:mode]), e.g. in group_vars.
+bookshelf_volumes: []
