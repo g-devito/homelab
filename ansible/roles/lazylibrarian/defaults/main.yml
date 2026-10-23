@@ -12,3 +12,5 @@ lazylibrarian_media_mount: "{{ media_mount_point | default('/mnt/media') }}"
 # Extra bind mounts go here (host:container[:mode]).
 lazylibrarian_volumes:
   - "{{ lazylibrarian_media_mount }}:/data:rslave"
+# Sent by LazyLibrarian to the sites it queries. Set it to "" to leave the app default.
+lazylibrarian_user_agent: "Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0"

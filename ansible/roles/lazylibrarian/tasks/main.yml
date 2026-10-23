@@ -29,3 +29,42 @@
   community.docker.docker_compose_v2:
     project_src: "{{ lazylibrarian_dir }}"
     state: present
+
+# The app rewrites config.ini when it stops, so the file is edited only while the container is down,
+# and only the user_agent key is managed (everything else stays under the app's control).
+- name: Wait for LazyLibrarian to create its config file
+  ansible.builtin.wait_for:
+    path: "{{ lazylibrarian_dir }}/config/config.ini"
+    timeout: 120
+  when: not ansible_check_mode
+
+- name: Read the current user agent
+  ansible.builtin.command: grep -E '^user_agent *=' {{ lazylibrarian_dir }}/config/config.ini
+  register: lazylibrarian_current_ua
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Set the LazyLibrarian user agent
+  when:
+    - lazylibrarian_user_agent | length > 0
+    - lazylibrarian_current_ua.stdout | default('') | regex_replace('^user_agent *= *', '') != lazylibrarian_user_agent
+  block:
+    - name: Stop LazyLibrarian
+      community.docker.docker_compose_v2:
+        project_src: "{{ lazylibrarian_dir }}"
+        state: stopped
+
+    - name: Write the user agent into config.ini
+      ansible.builtin.ini_file:
+        path: "{{ lazylibrarian_dir }}/config/config.ini"
+        section: GENERAL
+        option: user_agent
+        value: "{{ lazylibrarian_user_agent }}"
+        no_extra_spaces: false
+        mode: preserve
+
+    - name: Start LazyLibrarian again
+      community.docker.docker_compose_v2:
+        project_src: "{{ lazylibrarian_dir }}"
+        state: present
