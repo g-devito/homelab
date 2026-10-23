@@ -1,0 +1,6 @@
+---
+- name: Recreate lazylibrarian
+  community.docker.docker_compose_v2:
+    project_src: "{{ lazylibrarian_dir }}"
+    state: present
+    recreate: always

@@ -1,0 +1,10 @@
+---
+# renovate: datasource=docker depName=lscr.io/linuxserver/lazylibrarian
+lazylibrarian_version: "e1c1040d-ls376"
+lazylibrarian_dir: /opt/homelab/lazylibrarian
+# Same model as the arr stack: published on the LAN address only, no public name, no Traefik route.
+lazylibrarian_lan_ip: "{{ ansible_host }}"
+# Infrastructure only: this role deploys the container, its config dir, the LAN port and
+# the backup label. Library, download and provider settings are configured by the owner in the app,
+# and any extra bind mounts the owner wants go here (host:container[:mode]), e.g. in group_vars.
+lazylibrarian_volumes: []
