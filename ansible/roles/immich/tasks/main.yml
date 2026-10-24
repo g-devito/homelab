@@ -47,3 +47,63 @@
   delay: 5
   until: immich_route_check.status in [200, 302]
   check_mode: false
+
+# The machine-learning worker sometimes hangs on start (gunicorn logs "Control socket listening" and nothing
+# else, the container stays unhealthy for hours). Docker never restarts an unhealthy container by itself.
+- name: Install the Immich machine-learning watchdog script
+  ansible.builtin.copy:
+    dest: /usr/local/bin/immich-ml-watchdog
+    content: |
+      #!/bin/sh
+      # Restart immich-machine-learning when Docker reports it unhealthy.
+      status=$(docker inspect --format '{% raw %}{{.State.Health.Status}}{% endraw %}' immich-machine-learning 2>/dev/null) || exit 0
+      if [ "$status" = "unhealthy" ]; then
+        echo "immich-machine-learning is unhealthy, restarting it"
+        docker restart immich-machine-learning
+      fi
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the Immich machine-learning watchdog service
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/immich-ml-watchdog.service
+    content: |
+      [Unit]
+      Description=Restart immich-machine-learning when unhealthy
+      After=docker.service
+      Requires=docker.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/immich-ml-watchdog
+    owner: root
+    group: root
+    mode: "0644"
+  register: immich_ml_watchdog_service
+
+- name: Install the Immich machine-learning watchdog timer
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/immich-ml-watchdog.timer
+    content: |
+      [Unit]
+      Description=Check immich-machine-learning every 5 minutes
+
+      [Timer]
+      OnBootSec=5min
+      OnUnitActiveSec=5min
+
+      [Install]
+      WantedBy=timers.target
+    owner: root
+    group: root
+    mode: "0644"
+  register: immich_ml_watchdog_timer
+
+- name: Enable the Immich machine-learning watchdog timer
+  ansible.builtin.systemd:
+    name: immich-ml-watchdog.timer
+    enabled: true
+    state: started
+    daemon_reload: "{{ immich_ml_watchdog_service.changed or immich_ml_watchdog_timer.changed }}"
+  when: not ansible_check_mode
