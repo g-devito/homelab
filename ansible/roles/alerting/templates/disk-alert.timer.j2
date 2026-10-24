@@ -1,8 +1,8 @@
 [Unit]
-Description=Hourly disk space check
+Description=Disk space check every 10 minutes
 
 [Timer]
-OnCalendar=hourly
+OnCalendar=*:0/10
 Persistent=true
 
 [Install]

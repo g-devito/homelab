@@ -13,3 +13,9 @@ jellyfin_metadata_country: US
 jellyfin_libraries:
   - { name: Film, type: movies, path: /media/Film }
   - { name: Serie, type: tvshows, path: /media/Serie }
+# Transcoding is software-only (the VM has no GPU) and writes to the cache on the root disk.
+# Without these two options ffmpeg runs ahead of the player and keeps every segment: one 4K remux
+# filled the 36 GB of free space in minutes. With them a session holds about keep_seconds of video.
+jellyfin_transcode_throttling: true
+jellyfin_transcode_delete_segments: true
+jellyfin_transcode_keep_seconds: 720
