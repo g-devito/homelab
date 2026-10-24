@@ -53,6 +53,29 @@
     mode: '0644'
   notify: Restart docker
 
+# The VM gets its address from DHCP on a hotplug interface, so network-online.target is reached
+# before 192.168.1.250 exists. Containers that publish ports on that address then fail at boot
+# with "cannot assign requested address" and stay down. Hold dockerd back until the address is
+# there; after 60 s it starts anyway.
+- name: Create the Docker service drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/docker.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Make Docker wait for the host address at boot
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/docker.service.d/wait-for-address.conf
+    content: |
+      [Service]
+      ExecStartPre=/usr/bin/bash -c 'for i in {1..60}; do ip -4 -o addr show | grep -q " {{ ansible_host }}/" && exit 0; sleep 1; done; echo "{{ ansible_host }} still missing, starting anyway" >&2'
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload systemd
+
 # Updates leave the previous image versions behind; remove the ones no container uses every week.
 - name: Install the weekly Docker image prune service
   ansible.builtin.copy:
