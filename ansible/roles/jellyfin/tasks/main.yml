@@ -17,6 +17,23 @@
     - config
     - cache
 
+# Never create the directory on the root disk when the media disk is missing (disaster recovery).
+- name: Check that the media disk is mounted
+  ansible.builtin.command: mountpoint -q {{ jellyfin_media_dir }}
+  register: jellyfin_media_mount
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Create the transcode directory on the media disk
+  ansible.builtin.file:
+    path: "{{ jellyfin_transcode_dir }}"
+    state: directory
+    owner: "1000"
+    group: "1000"
+    mode: "0755"
+  when: jellyfin_media_mount.rc == 0
+
 - name: Deploy Jellyfin docker-compose file
   ansible.builtin.template:
     src: docker-compose.yml.j2
@@ -111,8 +128,8 @@
   register: jellyfin_encoding
   check_mode: false
 
-# The cache lives on the root disk: bound how much a transcoding session can keep there.
-- name: Throttle transcodes and delete played segments
+# Bound how much a transcoding session keeps, and move its segments to the media disk.
+- name: Throttle transcodes, delete played segments, transcode on the media disk
   ansible.builtin.uri:
     url: "http://{{ jellyfin_lan_bind }}/System/Configuration/encoding"
     method: POST
@@ -126,6 +143,7 @@
       EnableThrottling: "{{ jellyfin_transcode_throttling }}"
       EnableSegmentDeletion: "{{ jellyfin_transcode_delete_segments }}"
       SegmentKeepSeconds: "{{ jellyfin_transcode_keep_seconds }}"
+      TranscodingTempPath: "{{ jellyfin_transcode_container_dir if jellyfin_media_mount.rc == 0 else (jellyfin_encoding.json.TranscodingTempPath | default('', true)) }}"
   when: jellyfin_encoding.json | combine(jellyfin_encoding_options) != jellyfin_encoding.json
   changed_when: true
 
