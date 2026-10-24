@@ -103,6 +103,32 @@
   no_log: true
   check_mode: false
 
+- name: Read the transcoding options
+  ansible.builtin.uri:
+    url: "http://{{ jellyfin_lan_bind }}/System/Configuration/encoding"
+    headers:
+      Authorization: 'MediaBrowser Token="{{ jellyfin_auth.json.AccessToken }}"'
+  register: jellyfin_encoding
+  check_mode: false
+
+# The cache lives on the root disk: bound how much a transcoding session can keep there.
+- name: Throttle transcodes and delete played segments
+  ansible.builtin.uri:
+    url: "http://{{ jellyfin_lan_bind }}/System/Configuration/encoding"
+    method: POST
+    headers:
+      Authorization: 'MediaBrowser Token="{{ jellyfin_auth.json.AccessToken }}"'
+    body_format: json
+    body: "{{ jellyfin_encoding.json | combine(jellyfin_encoding_options) }}"
+    status_code: [200, 204]
+  vars:
+    jellyfin_encoding_options:
+      EnableThrottling: "{{ jellyfin_transcode_throttling }}"
+      EnableSegmentDeletion: "{{ jellyfin_transcode_delete_segments }}"
+      SegmentKeepSeconds: "{{ jellyfin_transcode_keep_seconds }}"
+  when: jellyfin_encoding.json | combine(jellyfin_encoding_options) != jellyfin_encoding.json
+  changed_when: true
+
 - name: Read existing libraries
   ansible.builtin.uri:
     url: "http://{{ jellyfin_lan_bind }}/Library/VirtualFolders"
