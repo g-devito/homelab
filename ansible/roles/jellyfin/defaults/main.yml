@@ -19,3 +19,7 @@ jellyfin_libraries:
 jellyfin_transcode_throttling: true
 jellyfin_transcode_delete_segments: true
 jellyfin_transcode_keep_seconds: 720
+# Transcoding segments go to the media disk (terabytes free) instead of the root disk, so a
+# transcode can never fill the system. Used only while the media disk is mounted.
+jellyfin_transcode_dir: "{{ jellyfin_media_dir }}/.transcodes"
+jellyfin_transcode_container_dir: /transcodes
