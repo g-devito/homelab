@@ -10,7 +10,9 @@ nut_ups_desc: "Eaton Ellipse PRO 1200"
 # smartd: short self-test daily at 02:00, long self-test Saturdays at 03:00.
 # Warn on temperature >= 45C, critical (mail) >= 55C.
 smartd_schedule: "(S/../.././02|L/../../6/03)"
-smartd_temperature: "4,45,55"
+# -W diff,info,critical in Celsius. The NVMe of the host reaches 55 under a long restore or
+# a backup (its own warning threshold is 81): mail only above 65.
+smartd_temperature: "4,55,65"
 
 # Lenovo BIOS setting via thinklmi; host must power back on after an outage.
 bios_after_power_loss: "Power On"
