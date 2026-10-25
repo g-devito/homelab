@@ -34,7 +34,7 @@ services:
       - "traefik.http.middlewares.redirect-https.redirectscheme.scheme=https"
       - "traefik.http.middlewares.redirect-https.redirectscheme.permanent=true"
       # Apply redirect middleware to all HTTP routers
-      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)" # Matches all hostnames
+      - "traefik.http.routers.http-catchall.rule=HostRegexp(`.+`)" # Matches all hostnames (v3 syntax)
       - "traefik.http.routers.http-catchall.entrypoints=http"
       - "traefik.http.routers.http-catchall.middlewares=redirect-https"
 
