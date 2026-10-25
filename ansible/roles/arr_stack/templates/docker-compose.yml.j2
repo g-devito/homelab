@@ -3,6 +3,10 @@
 # Immich, Seafile, Radicale or other services' data.
 x-common: &common
   restart: always
+  dns:
+{% for server in arr_stack_dns %}
+    - {{ server }}
+{% endfor %}
   # Stopped during backups, so their SQLite databases are copied at rest.
   labels:
     - "backup.manage=true"
