@@ -1,0 +1,14 @@
+#cloud-config
+users:
+  - name: gio
+    groups: [sudo]
+    shell: /bin/bash
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    ssh_authorized_keys:
+      - {{ proxmox_cloud_init_ssh_public_key }}
+package_update: true
+packages:
+  - qemu-guest-agent
+runcmd:
+  - D=/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi1; blkid -p $D >/dev/null 2>&1 || mkfs.ext4 -q -L storage $D
+  - systemctl enable --now qemu-guest-agent

@@ -10,3 +10,6 @@ proxmox_vm_usb:
 
 # SATA SSD (ext4, label "data") mounted at /mnt/data; replace the UUID when the disk changes.
 proxmox_data_disk_uuid: "c22eb499-4e3b-4090-aaa5-8ce8be0fabe1"
+
+# Public key of the cloud-init user `gio` on VMs created by OpenTofu (public, not a secret).
+proxmox_cloud_init_ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPr/7PvGRywRj4gJbNoT3ooHxXnkybxWdUpgQQHjAVYI gio@fedora"

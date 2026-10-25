@@ -1,6 +1,4 @@
 # Copy to terraform.tfvars (git-ignored) and adjust.
-ssh_public_key = "ssh-ed25519 AAAA... gionet"
-
 vms = {
   # Production VM. Import it, never create it blindly:
   #   tofu import 'proxmox_virtual_environment_vm.vm["gionet"]' pve/101

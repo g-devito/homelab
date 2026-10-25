@@ -1,21 +1,21 @@
-- name: Validate storage mount variables
-  ansible.builtin.assert:
-    that:
-      - disk_uuid is defined
-      - disk_uuid | length > 0
-    fail_msg: "Missing disk_uuid in inventory. Set disk_uuid for host in inventory.ini."
+# A disk that already holds data is pinned by UUID (disk_uuid in the inventory). A VM created
+# from scratch gets its empty data disk formatted by cloud-init with the label below.
+- name: Pick the data disk by UUID or by label
+  ansible.builtin.set_fact:
+    storage_src: "{{ ('UUID=' ~ disk_uuid) if (disk_uuid | default('') | length > 0) else ('LABEL=' ~ storage_label) }}"
+    storage_dev: "{{ ('/dev/disk/by-uuid/' ~ disk_uuid) if (disk_uuid | default('') | length > 0) else ('/dev/disk/by-label/' ~ storage_label) }}"
 
 - name: Mount secondary HDD
   mount:
     path: "{{ mount_point }}"
-    src: "UUID={{ disk_uuid }}"
+    src: "{{ storage_src }}"
     fstype: ext4
     state: mounted
 
 # The virtual disk can be larger than the filesystem (it was copied from a smaller one): grow it online.
 - name: Grow the filesystem to the size of its disk
   community.general.filesystem:
-    dev: "/dev/disk/by-uuid/{{ disk_uuid }}"
+    dev: "{{ storage_dev }}"
     fstype: ext4
     resizefs: true
 
