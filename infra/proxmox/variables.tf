@@ -4,9 +4,10 @@ variable "node" {
   default     = "pve"
 }
 
-variable "ssh_public_key" {
-  description = "Public key put in the cloud-init user of every VM created from scratch"
+variable "cloud_init_snippet" {
+  description = "Cloud-init user data snippet on the `local` storage, installed by the proxmox_host role"
   type        = string
+  default     = "debian-user-data.yaml"
 }
 
 variable "vms" {

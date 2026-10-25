@@ -8,6 +8,10 @@ resource "proxmox_download_file" "debian13" {
   url          = "https://cloud.debian.org/images/cloud/trixie/latest/debian-13-genericcloud-amd64.qcow2"
 }
 
+# Cloud-init user data: a snippet that the proxmox_host role installs on the node (as root, so this
+# token needs no storage-allocation rights). It replaces the generated user data, so it creates the user
+# too, installs the guest agent (OpenTofu waits for it) and formats the empty data disk (scsi1) with the
+# label that the `storage` role mounts. A disk that already has a filesystem is left alone.
 resource "proxmox_virtual_environment_vm" "vm" {
   for_each = var.vms
 
@@ -67,10 +71,7 @@ resource "proxmox_virtual_environment_vm" "vm" {
       }
     }
 
-    user_account {
-      username = "gio"
-      keys     = [var.ssh_public_key]
-    }
+    user_data_file_id = "local:snippets/${var.cloud_init_snippet}"
   }
 
   # The USB media disk is passed through by Ansible (proxmox_host role): Proxmox only

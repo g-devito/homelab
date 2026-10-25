@@ -198,3 +198,29 @@
     - proxmox_data_disk_uuid | length > 0
     - proxmox_storages.stdout is not search('^' ~ proxmox_data_storage_id ~ ' ', multiline=True)
   changed_when: true
+
+# Cloud-init user data of the VMs that OpenTofu creates (infra/proxmox) is a snippet on this storage.
+- name: Read the content types of the snippet storage
+  ansible.builtin.command: pvesh get /storage/{{ proxmox_snippets_storage_id }} --output-format json
+  register: proxmox_snippets_storage
+  changed_when: false
+  check_mode: false
+
+- name: Allow snippets on the snippet storage
+  ansible.builtin.command: >-
+    pvesm set {{ proxmox_snippets_storage_id }}
+    --content {{ (((proxmox_snippets_storage.stdout | from_json).content.split(',')) + ['snippets']) | join(',') }}
+  when: "'snippets' not in (proxmox_snippets_storage.stdout | from_json).content.split(',')"
+  changed_when: true
+
+- name: Create the snippets directory
+  ansible.builtin.file:
+    path: "{{ proxmox_snippets_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Install the cloud-init user data for new VMs
+  ansible.builtin.template:
+    src: debian-user-data.yaml.j2
+    dest: "{{ proxmox_snippets_dir }}/debian-user-data.yaml"
+    mode: "0644"

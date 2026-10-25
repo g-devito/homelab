@@ -28,3 +28,7 @@ proxmox_block_usb_storage: true
 proxmox_data_disk_uuid: ""
 proxmox_data_mount: /mnt/data
 proxmox_data_storage_id: data-1tb
+
+# Storage that holds the cloud-init user data referenced by OpenTofu (infra/proxmox).
+proxmox_snippets_storage_id: local
+proxmox_snippets_dir: /var/lib/vz/snippets
