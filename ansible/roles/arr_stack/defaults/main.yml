@@ -1,4 +1,5 @@
 ---
+arr_stack_media_dir: /mnt/media
 arr_stack_dir: /opt/homelab/arr-stack
 arr_stack_lan_ip: "{{ ansible_host }}"
 arr_stack_downloads_dir: /opt/homelab/downloads

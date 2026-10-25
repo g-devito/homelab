@@ -27,7 +27,8 @@ services:
       - WEBUI_PORT=8080
     volumes:
       - /opt/homelab/qbittorrent/config:/config
-      - {{ arr_stack_downloads_dir }}:/data/downloads
+      - {{ arr_stack_media_dir }}:/data:rslave
+      - {{ arr_stack_downloads_dir }}:/downloads
     ports:
       - "{{ arr_stack_lan_ip }}:8080:8080"
 
@@ -46,7 +47,7 @@ services:
     container_name: lidarr
     volumes:
       - /opt/homelab/lidarr/config:/config
-      - {{ arr_stack_downloads_dir }}:/data/downloads
+      - {{ arr_stack_downloads_dir }}:/downloads
       - {{ arr_stack_music_dir }}:/data/navidrome/music
     ports:
       - "{{ arr_stack_lan_ip }}:8686:8686"
@@ -57,7 +58,7 @@ services:
     container_name: radarr
     volumes:
       - /opt/homelab/radarr/config:/config
-      - {{ arr_stack_downloads_dir }}:/data/downloads
+      - {{ arr_stack_media_dir }}:/data:rslave
     ports:
       - "{{ arr_stack_lan_ip }}:7878:7878"
 
@@ -67,7 +68,7 @@ services:
     container_name: sonarr
     volumes:
       - /opt/homelab/sonarr/config:/config
-      - {{ arr_stack_downloads_dir }}:/data/downloads
+      - {{ arr_stack_media_dir }}:/data:rslave
     ports:
       - "{{ arr_stack_lan_ip }}:8989:8989"
 
