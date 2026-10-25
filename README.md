@@ -66,12 +66,10 @@ ansible-playbook ansible/site.yml --check --diff     # see what would change
 ansible-playbook ansible/site.yml                    # apply everything
 ansible-playbook ansible/site.yml --tags immich      # one service
 ansible-playbook ansible/restore.yml -e restore_confirm=yes   # disaster recovery
+scripts/dr-rehearsal.sh                              # rebuild on a throwaway VM, check, destroy
 ```
 
 ## Roadmap
 
-- OpenTofu (bpg/proxmox provider) to create the VM itself
-- Full disaster-recovery rehearsal on a throwaway VM
 - Traefik v3 migration
-- Renovate for image version bumps
 - k3s lab cluster with GitOps (separate from production)
