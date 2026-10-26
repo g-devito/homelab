@@ -1,6 +1,6 @@
 ---
 # renovate: datasource=docker depName=ghcr.io/advplyr/audiobookshelf
-audiobookshelf_version: "2.37.1"
+audiobookshelf_version: "2.37.2"
 audiobookshelf_dir: /opt/homelab/audiobookshelf
 audiobookshelf_domain: books.gionet.eu
 # Library folders live on the media disk next to Film and Serie (not backed up, like them).
