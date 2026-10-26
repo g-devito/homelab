@@ -1,0 +1,6 @@
+---
+- name: Recreate xmage
+  community.docker.docker_compose_v2:
+    project_src: "{{ xmage_dir }}"
+    state: present
+    recreate: always

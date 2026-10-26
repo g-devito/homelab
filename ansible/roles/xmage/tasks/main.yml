@@ -1,0 +1,21 @@
+---
+- name: Create XMage directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ xmage_dir }}"
+    - "{{ xmage_dir }}/db"
+
+- name: Deploy XMage docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ xmage_dir }}/docker-compose.yml"
+    mode: "0644"
+  notify: Recreate xmage
+
+- name: Start XMage
+  community.docker.docker_compose_v2:
+    project_src: "{{ xmage_dir }}"
+    state: present

@@ -1,0 +1,34 @@
+services:
+  xmage:
+    image: {{ xmage_image }}
+    container_name: xmage
+    restart: unless-stopped
+    mem_limit: {{ xmage_memory_limit }}
+    environment:
+      - TZ=Europe/Rome
+      - XMAGE_DOCKER_SERVER_ADDRESS={{ xmage_server_address }}
+      - XMAGE_DOCKER_SERVER_NAME={{ xmage_server_name }}
+    # XMage needs its own address to resolve inside the container.
+    extra_hosts:
+      - "{{ xmage_server_address }}:0.0.0.0"
+    ports:
+      - "{{ xmage_server_address }}:{{ xmage_port }}:17171"
+      - "{{ xmage_server_address }}:{{ xmage_secondary_port }}:17179"
+    volumes:
+      - {{ xmage_dir }}/db:/xmage/mage-server/db
+    labels:
+      # Stopped during backups so its database is copied at rest.
+      - "backup.manage=true"
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  watchtower:
+    image: nickfedor/watchtower:{{ xmage_watchtower_version }}
+    container_name: xmage-watchtower
+    restart: unless-stopped
+    environment:
+      - TZ=Europe/Rome
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_SCHEDULE={{ xmage_update_schedule }}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

@@ -1,0 +1,16 @@
+---
+# The client and the server must run the same XMage build, and the launcher on
+# the players' PCs always fetches the newest one. So the server follows `latest`
+# and Watchtower (limited to this container) pulls it every night.
+xmage_image: goesta/xmage-beta:latest
+# renovate: datasource=docker depName=nickfedor/watchtower
+xmage_watchtower_version: "1.23.2"
+xmage_dir: /opt/homelab/xmage
+# Players connect to this address and port 17171 from the XMage client.
+xmage_server_address: "{{ ansible_host }}"
+xmage_server_name: gionet
+xmage_port: 17171
+xmage_secondary_port: 17179
+xmage_memory_limit: 2g
+# Nightly, 6-field cron (seconds first). The backup runs earlier in the night.
+xmage_update_schedule: "0 30 4 * * *"
