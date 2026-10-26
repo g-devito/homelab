@@ -6,11 +6,11 @@ xmage_image: goesta/xmage-beta:latest
 # renovate: datasource=docker depName=nickfedor/watchtower
 xmage_watchtower_version: "1.23.2"
 xmage_dir: /opt/homelab/xmage
-# Players connect to xmage_published_address, port 17171, from the XMage client.
-xmage_published_address: "{{ ansible_host }}"
-# The server binds to this name inside the container, so it must be a host name
-# (mapped to 0.0.0.0 through extra_hosts), not the VM's IP.
-xmage_server_address: xmage-server
+# Players connect to xmage_server_address, port 17171, from the XMage client.
+# The server advertises this address to the clients for its second connection, so
+# it has to be the VM's real LAN address; the container runs on the host network
+# to be able to bind to it.
+xmage_server_address: "{{ ansible_host }}"
 xmage_server_name: gionet
 xmage_port: 17171
 xmage_secondary_port: 17179

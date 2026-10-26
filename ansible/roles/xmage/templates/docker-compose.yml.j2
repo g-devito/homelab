@@ -8,13 +8,10 @@ services:
       - TZ=Europe/Rome
       - XMAGE_DOCKER_SERVER_ADDRESS={{ xmage_server_address }}
       - XMAGE_DOCKER_SERVER_NAME={{ xmage_server_name }}
+      - XMAGE_DOCKER_PORT={{ xmage_port }}
+      - XMAGE_DOCKER_SEONDARY_BIND_PORT={{ xmage_secondary_port }}
       - XMAGE_DOCKER_AUTHENTICATION_ACTIVATED={{ xmage_authentication | lower }}
-    # XMage needs its own address to resolve inside the container.
-    extra_hosts:
-      - "{{ xmage_server_address }}:0.0.0.0"
-    ports:
-      - "{{ xmage_published_address }}:{{ xmage_port }}:17171"
-      - "{{ xmage_published_address }}:{{ xmage_secondary_port }}:17179"
+    network_mode: host
     volumes:
       - {{ xmage_dir }}/db:/xmage/mage-server/db
     labels:
