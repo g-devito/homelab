@@ -102,8 +102,7 @@ fi
 mkdir -p "$(dirname "$LINK")"
 if [ -d "$LINK" ] && [ ! -L "$LINK" ]; then
   say "Moving the images found in the install to $IMAGES"
-  rmdir "$IMAGES" 2>/dev/null && mv "$LINK" "$IMAGES"
-  [ -d "$LINK" ] && { echo "$IMAGES is not empty: merge $LINK by hand" >&2; exit 1; }
+  cp -an "$LINK"/. "$IMAGES"/ && rm -rf "$LINK"
 fi
 ln -sfn "$IMAGES" "$LINK"
 if [ -n "$copy_from" ]; then
