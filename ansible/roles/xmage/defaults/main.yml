@@ -14,3 +14,6 @@ xmage_secondary_port: 17179
 xmage_memory_limit: 2g
 # Nightly, 6-field cron (seconds first). The backup runs earlier in the night.
 xmage_update_schedule: "0 30 4 * * *"
+# Players register an account from the client (user name + password). Accounts
+# and stats live in the database under xmage_dir.
+xmage_authentication: true
