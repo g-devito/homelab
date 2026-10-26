@@ -8,6 +8,7 @@ services:
       - TZ=Europe/Rome
       - XMAGE_DOCKER_SERVER_ADDRESS={{ xmage_server_address }}
       - XMAGE_DOCKER_SERVER_NAME={{ xmage_server_name }}
+      - XMAGE_DOCKER_AUTHENTICATION_ACTIVATED={{ xmage_authentication | lower }}
     # XMage needs its own address to resolve inside the container.
     extra_hosts:
       - "{{ xmage_server_address }}:0.0.0.0"
