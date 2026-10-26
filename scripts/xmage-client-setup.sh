@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Set up the XMage client on a Fedora desktop so that it stays in sync with the homelab server.
 #
-#   scripts/xmage-client-setup.sh [--copy-images-from SRC] [--no-launch]
+#   scripts/xmage-client-setup.sh [--list-old] [--copy-images-from SRC] [--no-launch]
 #
 # The server (role `xmage`) follows the newest beta build every night, and client and server must
 # run the same build. So the client is installed once from the full package and then updated in
@@ -12,6 +12,8 @@
 #                           Scryfall: a local path, or user@host:/path for rsync over SSH
 #                           (the old PC keeps them in <install>/xmage/mage-client/plugins/images)
 #   --no-launch             only install, do not start the launcher
+#   --list-old              only list what is left of older XMage setups (installs, packages, image
+#                           folders with their size) and exit: it never deletes or changes anything
 #
 # Nothing needs root: the client always runs on Java 17; Temurin 17 is unpacked in the user's home
 # when the system has no Java 17. The `xmage` command (~/.local/bin) starts the launcher with it
@@ -32,14 +34,33 @@ IMAGES=$XMAGE_HOME/images
 BIN=$HOME/.local/bin
 LINK=$APP/xmage/mage-client/plugins/images
 
-copy_from= launch=1
+copy_from= launch=1 list_old=0
 while [ $# -gt 0 ]; do
   case $1 in
     --copy-images-from) copy_from=${2:?missing source}; shift 2 ;;
     --no-launch) launch=0; shift ;;
+    --list-old) list_old=1; shift ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
 done
+
+if [ "$list_old" = 1 ]; then
+  echo "Older XMage setups under $HOME (nothing is deleted):"
+  found=0
+  # Folders that hold a client or the card images, and packages left in Downloads.
+  while IFS= read -r d; do
+    case $d in "$XMAGE_HOME"|"$XMAGE_HOME"/*) continue ;; esac
+    found=1; printf '  %-8s %s\n' "$(du -shL "$d" 2>/dev/null | cut -f1)" "$d"
+  done < <(find "$HOME" -maxdepth 5 \( -path "$XMAGE_HOME" -o -path '*/.cache' -o -path '*/.var' -o -path "$HOME/repos" \) -prune -o \
+    \( -type d \( -name 'mage-full_*' -o -name mage-client -o -name 'xmage*' \) -o -type f -name 'mage-full_*.zip' -o -type f -name 'XMageLauncher*.jar' \) -print 2>/dev/null | sort)
+  echo
+  echo "Image folders (<install>/xmage/mage-client/plugins/images): move the biggest one to $IMAGES"
+  echo "with mv before deleting anything else; the setup script then links it into the new install."
+  [ -L "$LINK" ] && echo "This PC already uses $IMAGES ($(du -shL "$IMAGES" 2>/dev/null | cut -f1))."
+  [ "$found" = 1 ] || echo "  (no old setup found)"
+  echo "Client settings (user name, server list) are in ~/.java/.userPrefs/mage: keep them."
+  exit 0
+fi
 
 say() { printf '== %s\n' "$*"; }
 need() { command -v "$1" >/dev/null || { echo "missing command: $1 (sudo dnf install $1)" >&2; exit 1; }; }
