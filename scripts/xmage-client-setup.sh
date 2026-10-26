@@ -14,7 +14,8 @@
 #   --no-launch             only install, do not start the launcher
 #
 # Nothing needs root: the client always runs on Java 17; Temurin 17 is unpacked in the user's home
-# when the system has no Java 17. The `xmage` command (~/.local/bin) starts the launcher with it.
+# when the system has no Java 17. The `xmage` command (~/.local/bin) starts the launcher with it
+# (the launcher then runs the client on the Java 8 bundled in the package).
 # Safe to run again: an existing install is kept, only the missing pieces are recreated.
 #
 # Everything lives in $XMAGE_HOME (default ~/.local/share/xmage):
@@ -114,11 +115,15 @@ fi
 cat >"$BIN/xmage" <<EOF
 #!/usr/bin/env bash
 # XMage launcher: it updates the client to the build the homelab server runs, then starts it.
+# The launcher starts the client with the Java 8 bundled in the package, which rejects the
+# --add-opens flags that other tools may leave in JAVA_TOOL_OPTIONS: start from a clean environment.
+unset JAVA_TOOL_OPTIONS JDK_JAVA_OPTIONS _JAVA_OPTIONS
 cd "$APP" && exec "$JAVA" -Djava.net.preferIPv4Stack=true -jar "$(basename "$LAUNCHER")"
 EOF
 cat >"$BIN/xmage-client" <<EOF
 #!/usr/bin/env bash
 # Starts another client window straight away (no update check): use it for the second player.
+unset JAVA_TOOL_OPTIONS JDK_JAVA_OPTIONS _JAVA_OPTIONS
 cd "$APP/xmage/mage-client" && exec "$JAVA" -Xmx2000m -Djava.net.preferIPv4Stack=true -jar "\$(ls lib/mage-client-*.jar | head -1)" "\$@"
 EOF
 chmod +x "$BIN/xmage" "$BIN/xmage-client"
