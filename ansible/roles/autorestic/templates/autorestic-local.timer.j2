@@ -1,9 +1,9 @@
 [Unit]
-Description=Run Autorestic local backup (Midnight and Noon)
+Description=Run Autorestic local backup (midnight)
 
 [Timer]
-# Runs at 12 AM and 12 PM every day
-OnCalendar=00,12:00:00
+# Once a day at midnight: the managed containers are stopped for ~1.5 minutes while it runs.
+OnCalendar=*-*-* 00:00:00
 Persistent=true
 
 [Install]

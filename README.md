@@ -26,7 +26,7 @@ Proxmox VE host ── NUT (UPS) · smartd · Postfix relay · Beszel agent · h
 | Configuration | Ansible: one role per service, tagged, idempotent (`changed=0` on a second run) |
 | Containers | Docker Compose, every image pinned to an explicit version |
 | Ingress | Traefik v2 with automatic HTTPS |
-| Backups | autorestic + restic: twice-daily local snapshots, nightly copy to B2, monthly automated restore test |
+| Backups | autorestic + restic: daily local snapshot at midnight, nightly copy to B2, monthly automated restore test |
 | Monitoring | Beszel (metrics and threshold alerts), healthchecks.io (dead man's switch), smartd, NUT |
 | Alerting | Postfix on the host relays for the VM; mail is sent only on real problems |
 | CI | GitHub Actions: `ansible-playbook --syntax-check` + `ansible-lint` on every pull request |
