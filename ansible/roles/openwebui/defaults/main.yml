@@ -1,6 +1,6 @@
 ---
 # renovate: datasource=docker depName=ghcr.io/open-webui/open-webui
-openwebui_version: v0.12.3
+openwebui_version: v0.12.5
 openwebui_dir: /opt/homelab/openwebui
 openwebui_hostname: ai.gionet.eu
 # Connections and API keys are set in the UI and stored in Open WebUI's own
