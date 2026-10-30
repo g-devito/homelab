@@ -64,3 +64,4 @@
 
 - name: Configure the hub
   ansible.builtin.include_tasks: config.yml
+  when: not ansible_check_mode  # the API calls need a live hub and a real login
