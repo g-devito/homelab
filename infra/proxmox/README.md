@@ -4,10 +4,11 @@ Creates the Debian 13 VM(s) on the Proxmox host from a cloud image. Ansible take
 (`ansible/site.yml`, then `ansible/restore.yml`).
 
 ```
+OPS_DIR=~/repos/homelab-ops   # private ops repo
 export PROXMOX_VE_ENDPOINT=https://192.168.1.218:8006/ PROXMOX_VE_INSECURE=true
-export PROXMOX_VE_API_TOKEN="$(cat ~/claude_projects/homelab/secrets/pve-tofu-token)"
+export PROXMOX_VE_API_TOKEN="$(cat "$OPS_DIR/secrets/pve-tofu-token")"
 cp example.tfvars terraform.tfvars   # edit
-tofu init -backend-config="path=$HOME/claude_projects/homelab/tofu-state/proxmox.tfstate"
+tofu init -backend-config="path=$OPS_DIR/tofu-state/proxmox.tfstate"
 tofu plan
 ```
 

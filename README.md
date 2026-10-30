@@ -58,7 +58,7 @@ ansible/
 ## Usage
 
 ```bash
-./setup_ansible.sh                     # ansible-core + collections on the controller
+./setup_ansible.sh                     # ansible-core + collections on a Fedora controller (immutable distros: run the collection install inside a toolbox/distrobox)
 cp inventory.ini.example inventory.ini # hosts, users, SSH keys
 echo '<vault password>' > .vault_pass
 

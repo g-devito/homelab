@@ -9,7 +9,7 @@ terraform {
   }
 
   # State stays out of this public repo. Initialise with:
-  #   tofu init -backend-config="path=$HOME/claude_projects/homelab/tofu-state/proxmox.tfstate"
+  #   tofu init -backend-config="path=$OPS_DIR/tofu-state/proxmox.tfstate"
   backend "local" {}
 }
 
