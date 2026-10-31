@@ -48,6 +48,8 @@
     name: xmage-update.timer
     enabled: true
     state: started
+  # In --check the units of a first run are not on disk yet.
+  ignore_errors: "{{ ansible_check_mode }}"
 
 # The server files come from the XMage site, not from this repo: the first run
 # downloads and installs the current build (and starts the container).
