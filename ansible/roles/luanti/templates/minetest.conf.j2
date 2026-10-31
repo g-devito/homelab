@@ -8,3 +8,7 @@ server_announce = false
 default_game = {{ luanti_game_id }}
 # Players pick a name; the first login sets its password.
 disallow_empty_password = true
+{% if luanti_admin | length > 0 %}
+# Administrator of the server: has every privilege.
+name = {{ luanti_admin }}
+{% endif %}
