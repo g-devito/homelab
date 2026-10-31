@@ -24,9 +24,11 @@ minecraft_memory_limit: 3g
 minecraft_modrinth_projects:
   # Required by almost every Fabric mod.
   - fabric-api
-  # Halloween test mods (they have to be on the clients too): carved pumpkins
-  # and spooky food.
-  - kaupens-carved-pumpkins
+  # Halloween test mods, checked to load on a 26.3 server (they have to be on
+  # the clients too): holiday decorations and spooky food. Carved Pumpkins and
+  # Spooky Doors were left out: the first crashes a dedicated server, the
+  # second needs the Balm library, which Modrinth does not declare.
+  - macaws-holidays
   - spooky-foods
 # Players allowed to join (their Minecraft Java profile names). While empty the
 # server is open to anybody on the LAN; the players still need a paid account.

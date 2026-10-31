@@ -16,6 +16,8 @@ services:
       - VIEW_DISTANCE={{ minecraft_view_distance }}
 {% if minecraft_modrinth_projects | length > 0 %}
       - MODRINTH_PROJECTS={{ minecraft_modrinth_projects | join(',') }}
+      # Mods dropped from the list are deleted from the data folder too.
+      - REMOVE_OLD_MODS=true
 {% endif %}
 {% if minecraft_whitelist | length > 0 %}
       - ENABLE_WHITELIST=true
