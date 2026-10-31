@@ -29,6 +29,14 @@
   when: luanti_game_version.changed
   notify: Recreate luanti
 
+- name: Create the VoxeLibre directory
+  ansible.builtin.file:
+    path: "{{ luanti_dir }}/data/games/{{ luanti_game_id }}"
+    state: directory
+    owner: "1000"
+    group: "1000"
+    mode: "0755"
+
 - name: Download VoxeLibre
   ansible.builtin.get_url:
     url: "https://github.com/VoxeLibre/VoxeLibre/archive/refs/tags/{{ luanti_voxelibre_version }}.tar.gz"
