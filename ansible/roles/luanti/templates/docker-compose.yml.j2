@@ -1,0 +1,18 @@
+services:
+  luanti:
+    image: {{ luanti_image }}
+    container_name: luanti
+    restart: unless-stopped
+    mem_limit: {{ luanti_memory_limit }}
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Rome
+      - CLI_ARGS=--gameid {{ luanti_game_id }} --world /config/.minetest/worlds/{{ luanti_world }}
+    ports:
+      - "{{ luanti_port }}:30000/udp"
+    volumes:
+      - {{ luanti_dir }}/data:/config/.minetest
+    labels:
+      # Stopped during backups so the world is copied at rest.
+      - "backup.manage=true"

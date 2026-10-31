@@ -1,6 +1,6 @@
 ---
-- name: Recreate minecraft
+- name: Recreate luanti
   community.docker.docker_compose_v2:
-    project_src: "{{ minecraft_dir }}"
+    project_src: "{{ luanti_dir }}"
     state: present
     recreate: always

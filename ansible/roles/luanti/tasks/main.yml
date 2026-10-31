@@ -1,0 +1,73 @@
+---
+# The container runs as uid 1000 and owns the world.
+- name: Create Luanti directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "1000"
+    group: "1000"
+    mode: "0755"
+  loop:
+    - "{{ luanti_dir }}"
+    - "{{ luanti_dir }}/data"
+    - "{{ luanti_dir }}/data/games"
+    - "{{ luanti_dir }}/data/main-config"
+
+- name: Record the VoxeLibre version
+  ansible.builtin.copy:
+    content: "{{ luanti_voxelibre_version }}\n"
+    dest: "{{ luanti_dir }}/voxelibre.version"
+    owner: "1000"
+    group: "1000"
+    mode: "0644"
+  register: luanti_game_version
+
+- name: Remove the previous VoxeLibre
+  ansible.builtin.file:
+    path: "{{ luanti_dir }}/data/games/{{ luanti_game_id }}"
+    state: absent
+  when: luanti_game_version.changed
+  notify: Recreate luanti
+
+- name: Download VoxeLibre
+  ansible.builtin.get_url:
+    url: "https://github.com/VoxeLibre/VoxeLibre/archive/refs/tags/{{ luanti_voxelibre_version }}.tar.gz"
+    dest: "{{ luanti_dir }}/voxelibre-{{ luanti_voxelibre_version }}.tar.gz"
+    checksum: "sha256:{{ luanti_voxelibre_sha256 }}"
+    owner: "1000"
+    group: "1000"
+    mode: "0644"
+
+- name: Install VoxeLibre
+  ansible.builtin.unarchive:
+    src: "{{ luanti_dir }}/voxelibre-{{ luanti_voxelibre_version }}.tar.gz"
+    dest: "{{ luanti_dir }}/data/games/{{ luanti_game_id }}"
+    remote_src: true
+    owner: "1000"
+    group: "1000"
+    extra_opts: ["--strip-components=1"]
+    creates: "{{ luanti_dir }}/data/games/{{ luanti_game_id }}/game.conf"
+  notify: Recreate luanti
+
+- name: Deploy the Luanti server settings
+  ansible.builtin.template:
+    src: minetest.conf.j2
+    dest: "{{ luanti_dir }}/data/main-config/minetest.conf"
+    owner: "1000"
+    group: "1000"
+    mode: "0644"
+  notify: Recreate luanti
+
+- name: Deploy Luanti docker-compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ luanti_dir }}/docker-compose.yml"
+    owner: "1000"
+    group: "1000"
+    mode: "0644"
+  notify: Recreate luanti
+
+- name: Start Luanti
+  community.docker.docker_compose_v2:
+    project_src: "{{ luanti_dir }}"
+    state: present
