@@ -23,6 +23,7 @@
     - { role: arr_stack, tags: [arr_stack] }
     - { role: soularr, tags: [soularr] }
     - { role: xmage, tags: [xmage] }
+    - { role: minecraft, tags: [minecraft] }
     - { role: openwebui, tags: [openwebui] }
     - { role: audiobookshelf, tags: [audiobookshelf] }
     - { role: bookshelf, tags: [bookshelf] }
