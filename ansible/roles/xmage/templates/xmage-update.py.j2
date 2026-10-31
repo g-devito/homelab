@@ -1,0 +1,138 @@
+#!/usr/bin/env python3
+"""Keep the XMage server on the newest build published for the launcher.
+
+Reads the launcher's config.json, and when the build differs from the installed
+one it downloads the full package, swaps the server files and restarts the
+container. Nothing happens while somebody is connected (it is retried on the
+next run) and a build that does not start is rolled back.
+"""
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.request
+import zipfile
+
+BASE = "{{ xmage_dir }}"
+CONFIG_URL = "{{ xmage_update_url }}"
+PORTS = ({{ xmage_port }}, {{ xmage_secondary_port }})
+SERVER = os.path.join(BASE, "server")
+OLD = os.path.join(BASE, "server.old")
+VERSION_FILE = os.path.join(BASE, "version")
+COMPOSE = ["docker", "compose", "--project-directory", BASE]
+START_TIMEOUT = 180
+
+
+def log(msg):
+    print(msg, flush=True)
+
+
+def installed_version():
+    try:
+        with open(VERSION_FILE) as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return ""
+
+
+def players_connected():
+    count = 0
+    for port in PORTS:
+        out = subprocess.run(
+            ["ss", "-Htn", "state", "established", f"( sport = :{port} )"],
+            check=True, capture_output=True, text=True,
+        ).stdout
+        count += len(out.splitlines())
+    return count
+
+
+def fetch_latest():
+    with urllib.request.urlopen(CONFIG_URL, timeout=30) as resp:
+        info = json.load(resp)["XMage"]
+    return info["version"], info["full"]
+
+
+def download_server(url, dest):
+    """Download the full package and extract only its mage-server folder into dest."""
+    with tempfile.TemporaryDirectory(dir=BASE) as tmp:
+        archive = os.path.join(tmp, "mage-full.zip")
+        with urllib.request.urlopen(url, timeout=60) as resp, open(archive, "wb") as out:
+            shutil.copyfileobj(resp, out)
+        with zipfile.ZipFile(archive) as zf:
+            bad = zf.testzip()
+            if bad:
+                raise RuntimeError(f"corrupt package, first bad file: {bad}")
+            names = zf.namelist()
+            marker = "mage-server/config/config.xml"
+            found = [n for n in names if n.endswith("/" + marker) or n == marker]
+            if len(found) != 1:
+                raise RuntimeError(f"expected one {marker} in the package, found {len(found)}")
+            prefix = found[0][:-len("config/config.xml")]
+            zf.extractall(tmp, [n for n in names if n.startswith(prefix)])
+        shutil.move(os.path.join(tmp, prefix.rstrip("/")), dest)
+
+
+def wait_started(since):
+    deadline = time.time() + START_TIMEOUT
+    while time.time() < deadline:
+        logs = subprocess.run(
+            ["docker", "logs", "--since", since, "xmage"],
+            capture_output=True, text=True,
+        )
+        if "Started MAGE server" in logs.stdout + logs.stderr:
+            return True
+        time.sleep(5)
+    return False
+
+
+def start():
+    since = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime()) + "Z"
+    subprocess.run(COMPOSE + ["up", "-d", "xmage"], check=True)
+    return wait_started(since)
+
+
+def main():
+    version, url = fetch_latest()
+    current = installed_version()
+    if version == current and os.path.isdir(SERVER):
+        log(f"xmage {version} is current")
+        return 0
+
+    players = players_connected()
+    if players:
+        log(f"xmage {version} available (installed: {current or 'none'}), "
+            f"{players} connection(s) open: retrying next run")
+        return 0
+
+    log(f"updating xmage: {current or 'none'} -> {version}")
+    staging = os.path.join(BASE, "server.new")
+    shutil.rmtree(staging, ignore_errors=True)
+    shutil.rmtree(OLD, ignore_errors=True)
+    download_server(url, staging)
+
+    subprocess.run(COMPOSE + ["stop", "xmage"], check=True)
+    if os.path.isdir(SERVER):
+        os.rename(SERVER, OLD)
+    os.rename(staging, SERVER)
+
+    if start():
+        with open(VERSION_FILE, "w") as f:
+            f.write(version + "\n")
+        shutil.rmtree(OLD, ignore_errors=True)
+        log(f"xmage {version} is running")
+        return 0
+
+    log(f"xmage {version} did not start within {START_TIMEOUT}s, rolling back")
+    subprocess.run(COMPOSE + ["stop", "xmage"], check=False)
+    if os.path.isdir(OLD):
+        shutil.rmtree(SERVER, ignore_errors=True)
+        os.rename(OLD, SERVER)
+        subprocess.run(COMPOSE + ["up", "-d", "xmage"], check=False)
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

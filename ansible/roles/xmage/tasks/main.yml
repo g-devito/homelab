@@ -15,7 +15,50 @@
     mode: "0644"
   notify: Recreate xmage
 
+- name: Deploy the XMage start script
+  ansible.builtin.template:
+    src: start.sh.j2
+    dest: "{{ xmage_dir }}/start.sh"
+    mode: "0755"
+  notify: Recreate xmage
+
+- name: Deploy the XMage updater
+  ansible.builtin.template:
+    src: xmage-update.py.j2
+    dest: /usr/local/sbin/xmage-update
+    mode: "0755"
+
+- name: Deploy the XMage updater units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+  loop:
+    - xmage-update.service
+    - xmage-update.timer
+  register: xmage_update_units
+
+- name: Reload systemd after unit changes
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: xmage_update_units.changed
+
+- name: Enable the XMage update timer
+  ansible.builtin.systemd:
+    name: xmage-update.timer
+    enabled: true
+    state: started
+
+# The server files come from the XMage site, not from this repo: the first run
+# downloads and installs the current build (and starts the container).
+- name: Install the first XMage server build
+  ansible.builtin.command: /usr/local/sbin/xmage-update
+  args:
+    creates: "{{ xmage_dir }}/version"
+
 - name: Start XMage
   community.docker.docker_compose_v2:
     project_src: "{{ xmage_dir }}"
     state: present
+    # The Watchtower container of the previous setup.
+    remove_orphans: true

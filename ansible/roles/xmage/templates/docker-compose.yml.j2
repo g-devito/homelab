@@ -4,29 +4,24 @@ services:
     container_name: xmage
     restart: unless-stopped
     mem_limit: {{ xmage_memory_limit }}
+    working_dir: /xmage/mage-server
+    command: ["sh", "/xmage/start.sh"]
     environment:
       - TZ=Europe/Rome
-      - XMAGE_DOCKER_SERVER_ADDRESS={{ xmage_server_address }}
-      - XMAGE_DOCKER_SERVER_NAME={{ xmage_server_name }}
-      - XMAGE_DOCKER_PORT={{ xmage_port }}
-      - XMAGE_DOCKER_SEONDARY_BIND_PORT={{ xmage_secondary_port }}
-      - XMAGE_DOCKER_AUTHENTICATION_ACTIVATED={{ xmage_authentication | lower }}
+      - XMAGE_SERVER_ADDRESS={{ xmage_server_address }}
+      - XMAGE_SERVER_NAME={{ xmage_server_name }}
+      - XMAGE_PORT={{ xmage_port }}
+      - XMAGE_SECONDARY_PORT={{ xmage_secondary_port }}
+      - XMAGE_AUTHENTICATION={{ xmage_authentication | lower }}
+      - XMAGE_MAX_SECONDS_IDLE={{ xmage_max_seconds_idle }}
+      - XMAGE_MAX_GAME_THREADS={{ xmage_max_game_threads }}
+      - XMAGE_MAX_AI_OPPONENTS={{ xmage_max_ai_opponents }}
+      - XMAGE_JAVA_OPTS={{ xmage_java_opts }}
     network_mode: host
     volumes:
+      - {{ xmage_dir }}/start.sh:/xmage/start.sh:ro
+      - {{ xmage_dir }}/server:/xmage/mage-server
       - {{ xmage_dir }}/db:/xmage/mage-server/db
     labels:
       # Stopped during backups so its database is copied at rest.
       - "backup.manage=true"
-      - "com.centurylinklabs.watchtower.enable=true"
-
-  watchtower:
-    image: nickfedor/watchtower:{{ xmage_watchtower_version }}
-    container_name: xmage-watchtower
-    restart: unless-stopped
-    environment:
-      - TZ=Europe/Rome
-      - WATCHTOWER_LABEL_ENABLE=true
-      - WATCHTOWER_CLEANUP=true
-      - WATCHTOWER_SCHEDULE={{ xmage_update_schedule }}
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
