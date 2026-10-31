@@ -1,0 +1,8 @@
+[Unit]
+Description=Update the XMage server to the newest published build
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/xmage-update

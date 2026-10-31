@@ -1,0 +1,20 @@
+#!/bin/sh
+# Runs inside the xmage container: applies the settings from the compose file to
+# the config.xml of the server package, then starts the server.
+set -eu
+
+config=/xmage/mage-server/config/config.xml
+
+sed -i -e "
+    s#\(serverAddress=\)[\"][^\"]*[\"]#\1\"${XMAGE_SERVER_ADDRESS}\"#;
+    s#\(serverName=\)[\"][^\"]*[\"]#\1\"${XMAGE_SERVER_NAME}\"#;
+    s#\( port=\)[\"][^\"]*[\"]#\1\"${XMAGE_PORT}\"#;
+    s#\(secondaryBindPort=\)[\"][^\"]*[\"]#\1\"${XMAGE_SECONDARY_PORT}\"#;
+    s#\(maxSecondsIdle=\)[\"][^\"]*[\"]#\1\"${XMAGE_MAX_SECONDS_IDLE}\"#;
+    s#\(maxGameThreads=\)[\"][^\"]*[\"]#\1\"${XMAGE_MAX_GAME_THREADS}\"#;
+    s#\(maxAiOpponents=\)[\"][^\"]*[\"]#\1\"${XMAGE_MAX_AI_OPPONENTS}\"#;
+    s#\(authenticationActivated=\)[\"][^\"]*[\"]#\1\"${XMAGE_AUTHENTICATION}\"#
+" "$config"
+
+# shellcheck disable=SC2086
+exec java $XMAGE_JAVA_OPTS -jar ./lib/mage-server-*.jar

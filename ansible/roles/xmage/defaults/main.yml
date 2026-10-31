@@ -1,11 +1,15 @@
 ---
 # The client and the server must run the same XMage build, and the launcher on
-# the players' PCs always fetches the newest one. So the server follows `latest`
-# and Watchtower (limited to this container) pulls it every night.
-xmage_image: goesta/xmage-beta:latest
-# renovate: datasource=docker depName=nickfedor/watchtower
-xmage_watchtower_version: "1.23.2"
+# the players' PCs always fetches the newest beta. The server therefore runs the
+# official server package straight from the XMage site: a timer checks it every
+# hour and installs a new build as soon as nobody is connected (xmage-update).
+# The container only provides Java 8, which is what XMage needs.
+xmage_image: eclipse-temurin:8u504-b01-jre
 xmage_dir: /opt/homelab/xmage
+# Same file the launcher reads: it names the newest build and its full package.
+xmage_update_url: https://beta.xmage.today/config.json
+# systemd OnCalendar; a no-op unless upstream published something new.
+xmage_update_schedule: hourly
 # Players connect to xmage_server_address, port 17171, from the XMage client.
 # The server advertises this address to the clients for its second connection, so
 # it has to be the VM's real LAN address; the container runs on the host network
@@ -15,8 +19,10 @@ xmage_server_name: gionet
 xmage_port: 17171
 xmage_secondary_port: 17179
 xmage_memory_limit: 2g
-# Nightly, 6-field cron (seconds first). The backup runs earlier in the night.
-xmage_update_schedule: "0 30 4 * * *"
+xmage_java_opts: -Xmx1024m -Dlog4j.configuration=file:./config/log4j.properties
+xmage_max_seconds_idle: 600
+xmage_max_game_threads: 10
+xmage_max_ai_opponents: 15
 # Off: two players on the LAN just pick a user name and leave the password empty.
 # Set it to true to make everyone register an account (kept in the database under xmage_dir).
 xmage_authentication: false
