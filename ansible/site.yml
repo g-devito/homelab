@@ -24,7 +24,6 @@
     - { role: soularr, tags: [soularr] }
     - { role: xmage, tags: [xmage] }
     - { role: minecraft, tags: [minecraft] }
-    - { role: luanti, tags: [luanti] }
     - { role: openwebui, tags: [openwebui] }
     - { role: audiobookshelf, tags: [audiobookshelf] }
     - { role: bookshelf, tags: [bookshelf] }
