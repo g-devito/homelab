@@ -1,0 +1,20 @@
+---
+# Luanti (the open source voxel engine) running VoxeLibre, the game closest to
+# Minecraft Java: survival, mobs, redstone, villages, Nether and End.
+# The server and the players' Luanti clients should be the same version; the
+# client comes from Flathub, so check what it ships before bumping the image.
+# renovate: datasource=docker depName=lscr.io/linuxserver/luanti
+luanti_image: lscr.io/linuxserver/luanti:5.17.0
+luanti_dir: /opt/homelab/luanti
+luanti_port: 30000
+luanti_memory_limit: 2g
+# VoxeLibre is not in the image: it is downloaded from its GitHub tag.
+luanti_voxelibre_version: "0.92.3"
+luanti_voxelibre_sha256: 3e76a4cca002307e59cd68bb97c7415117ea8393e20f87f27a75e236451f2ab0
+luanti_game_id: mineclone2
+luanti_server_name: gionet
+luanti_server_description: Homelab LAN server
+luanti_motd: Benvenuti su gionet
+luanti_max_users: 4
+# The world is created on first start; its name is the folder under worlds/.
+luanti_world: world
