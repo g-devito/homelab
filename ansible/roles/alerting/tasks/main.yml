@@ -115,6 +115,22 @@
     - disk-alert.timer
   register: alerting_disk_units
 
+- name: Install maintenance reminder
+  ansible.builtin.template:
+    src: maintenance-check.sh.j2
+    dest: /usr/local/sbin/maintenance-check
+    mode: "0755"
+
+- name: Install maintenance reminder units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    mode: "0644"
+  loop:
+    - maintenance-check.service
+    - maintenance-check.timer
+  register: alerting_maintenance_units
+
 - name: Ensure a healthchecks.io heartbeat check exists for this host
   ansible.builtin.uri:
     url: "{{ healthchecks_api_url }}/checks/"
@@ -159,13 +175,13 @@
 - name: Reload systemd after unit changes
   ansible.builtin.systemd:
     daemon_reload: true
-  when: alerting_disk_units.changed or (alerting_heartbeat_units.changed | default(false))
+  when: alerting_disk_units.changed or alerting_maintenance_units.changed or (alerting_heartbeat_units.changed | default(false))
 
 - name: Enable alerting timers
   ansible.builtin.systemd:
     name: "{{ item }}"
     enabled: true
     state: started
-  loop: "{{ ['disk-alert.timer'] if (dr_test | default(false)) else ['disk-alert.timer', 'heartbeat.timer'] }}"
+  loop: "{{ ['disk-alert.timer', 'maintenance-check.timer'] if (dr_test | default(false)) else ['disk-alert.timer', 'maintenance-check.timer', 'heartbeat.timer'] }}"
   # In --check the unit files were not written yet.
   ignore_errors: "{{ ansible_check_mode }}"

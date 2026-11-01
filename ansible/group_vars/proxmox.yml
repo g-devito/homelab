@@ -13,3 +13,9 @@ proxmox_data_disk_uuid: "c22eb499-4e3b-4090-aaa5-8ce8be0fabe1"
 
 # Public key of the cloud-init user `gio` on VMs created by OpenTofu (public, not a secret).
 proxmox_cloud_init_ssh_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPr/7PvGRywRj4gJbNoT3ooHxXnkybxWdUpgQQHjAVYI gio@fedora"
+
+# Monthly maintenance (ansible/maintenance.yml): the VM that is snapshotted before upgrading,
+# and how many pre-maint-* snapshots are kept. The reminder mail comes from the VM only.
+maintenance_vmid: 101
+maintenance_keep_snapshots: 2
+alerting_maintenance_reminder: false
