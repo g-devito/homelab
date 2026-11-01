@@ -1,0 +1,47 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# SMART is not readable through the USB passthrough, so watch for what a dying or
+# disconnected disk looks like instead: kernel I/O errors / USB resets on the disk,
+# and the mount being gone. Mails root, at most once a day while the problem lasts.
+# --test sends a test mail.
+set -euo pipefail
+
+mount_point={{ media_mount_point }}
+device={{ media_disk_device }}
+state=/var/lib/media-disk-alert/last-alert
+mkdir -p "$(dirname "$state")"
+
+if [ "${1:-}" = "--test" ]; then
+    echo "Test from media-disk-alert on $(hostname): this is how a media disk alert arrives." \
+        | mail -s "[TEST] media-disk-alert on $(hostname)" root
+    exit 0
+fi
+
+problems=""
+
+if ! mountpoint -q "$mount_point"; then
+    problems+="$mount_point is not mounted"$'\n'
+fi
+
+if [ -e "$device" ]; then
+    name=$(basename "$(readlink -f "$device")")
+    errors=$(journalctl -k --since "-15min" --no-pager -o cat 2>/dev/null \
+        | grep -E "\b${name}[0-9]*\b" \
+        | grep -Ei "I/O error|Buffer I/O|blk_update_request|EXT4-fs error|reset|abort|offline" | tail -n 10 || true)
+    [ -z "$errors" ] || problems+="kernel errors on $name in the last 15 minutes:"$'\n'"$errors"$'\n'
+else
+    problems+="$device does not exist (disk unplugged or not passed through)"$'\n'
+fi
+
+if [ -z "$problems" ]; then
+    rm -f "$state"
+    exit 0
+fi
+
+if [ -f "$state" ] && [ -z "$(find "$state" -mmin +1440)" ]; then
+    exit 0
+fi
+
+printf 'Media disk problem on %s:\n\n%s\n' "$(hostname)" "$problems" \
+    | mail -s "[ALERT] media disk on $(hostname)" root
+touch "$state"

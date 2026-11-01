@@ -1,0 +1,6 @@
+[Unit]
+Description=Mail root when the media disk shows I/O errors or disappears
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/media-disk-alert

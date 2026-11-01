@@ -6,11 +6,8 @@ media_mount_point: /mnt/media
 media_disk_label: Media
 media_disk_fstype: ext4
 media_disk_options: "noatime,nofail,x-systemd.device-timeout=15s"
-# udev names the USB disk /dev/media-disk so smartd does not depend on its serial.
-media_disk_smart_device: /dev/media-disk
-media_disk_smart_type: sat
-# Short self-test daily 02:30, long self-test Sundays 04:00. Mail on temp >= 55C.
-media_disk_smart_schedule: "(S/../.././02|L/../../7/04)"
+# udev gives the USB disk a stable name that does not depend on its serial.
+media_disk_device: /dev/media-disk
 # USB-SATA bridges that misbehave with UAS under passthrough (reads abort, the
 # disk resets every 30s). "vid:pid:u" makes them use the plain usb-storage driver.
 media_disk_usb_quirks:
