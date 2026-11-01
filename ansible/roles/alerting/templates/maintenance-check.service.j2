@@ -1,0 +1,6 @@
+[Unit]
+Description=Remind about the monthly maintenance window and flag overdue maintenance
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/maintenance-check

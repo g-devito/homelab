@@ -1,0 +1,215 @@
+---
+# Monthly maintenance window: first Sunday of the month, in the morning.
+#
+#   ansible-playbook ansible/maintenance.yml --check --diff       what would be upgraded
+#   ansible-playbook ansible/maintenance.yml                      snapshot, upgrade the VM and the hypervisor
+#   ansible-playbook ansible/maintenance.yml -e reboot_pve=true   same, and reboot the hypervisor if a new kernel needs it
+#
+# The hypervisor reboot takes the VM (and every service) down for a few minutes, so it is
+# never done unless asked. Without it the playbook says whether a reboot is pending.
+
+- name: Pre-flight checks on the VM
+  hosts: homelab
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Check that the last backups and the restore test succeeded
+      ansible.builtin.shell: |
+        set -eu
+        for u in autorestic-local autorestic-cloud restore-test; do
+          result=$(systemctl show "$u.service" -p Result --value)
+          [ "$result" = success ] || { echo "$u: last result is $result"; exit 1; }
+        done
+        for u in autorestic-local autorestic-cloud; do
+          ts=$(systemctl show "$u.service" -p ExecMainExitTimestamp --value)
+          age=$(( ( $(date +%s) - $(date -d "$ts" +%s) ) / 3600 ))
+          [ "$age" -lt 36 ] || { echo "$u: last run $age hours ago"; exit 1; }
+        done
+      args:
+        executable: /bin/bash
+      changed_when: false
+      check_mode: false
+
+    - name: Count running and unhealthy containers
+      ansible.builtin.shell: echo "$(docker ps -q | wc -l) $(docker ps -q --filter health=unhealthy | wc -l)"
+      register: maintenance_before
+      changed_when: false
+      check_mode: false
+
+    - name: Refuse to start with unhealthy containers
+      ansible.builtin.assert:
+        that: maintenance_before.stdout.split()[1] == '0'
+        fail_msg: "{{ maintenance_before.stdout.split()[1] }} unhealthy containers, fix them before upgrading"
+
+    - name: Remember how many containers must be running at the end
+      ansible.builtin.set_fact:
+        maintenance_containers: "{{ maintenance_before.stdout.split()[0] | int }}"
+
+- name: Snapshot the VM
+  hosts: proxmox
+  gather_facts: false
+  tasks:
+    - name: Take a snapshot before upgrading
+      ansible.builtin.shell: |
+        name=pre-maint-{{ '%Y%m%d' | strftime }}
+        if qm listsnapshot {{ maintenance_vmid }} | grep -q " $name "; then
+          echo "snapshot exists"
+        else
+          qm snapshot {{ maintenance_vmid }} "$name" --description "before monthly maintenance" >/dev/null
+          echo "snapshot created"
+        fi
+      register: maintenance_snapshot
+      changed_when: "'created' in maintenance_snapshot.stdout"
+      when: not ansible_check_mode
+
+- name: Upgrade the VM
+  hosts: homelab
+  become: true
+  gather_facts: false
+  tasks:
+    # Upgrading Docker restarts the daemon, and with it every container.
+    - name: Upgrade all packages
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+        autoremove: true
+
+    - name: Check whether the VM needs a reboot
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: maintenance_vm_reboot
+
+    - name: Reboot the VM when a package asks for it
+      ansible.builtin.reboot:
+        reboot_timeout: 900
+      when: maintenance_vm_reboot.stat.exists and not ansible_check_mode
+
+- name: Upgrade the hypervisor
+  hosts: proxmox
+  gather_facts: false
+  tasks:
+    - name: Upgrade all packages
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+        autoremove: true
+
+    - name: Check whether a newer kernel than the running one is installed
+      ansible.builtin.shell: |
+        newest=$(ls /boot/vmlinuz-* | sort -V | tail -1)
+        [ "$newest" = "/boot/vmlinuz-$(uname -r)" ] && echo no || echo yes
+      register: maintenance_pve_reboot
+      changed_when: false
+      check_mode: false
+
+    - name: Say that a hypervisor reboot is pending
+      ansible.builtin.debug:
+        msg: >-
+          The hypervisor runs an older kernel than the installed one. Rebooting it stops
+          the VM and every service for a few minutes. Run again with -e reboot_pve=true.
+      when: maintenance_pve_reboot.stdout == 'yes' and not (reboot_pve | default(false) | bool)
+
+    - name: Reboot the hypervisor
+      when:
+        - maintenance_pve_reboot.stdout == 'yes'
+        - reboot_pve | default(false) | bool
+        - not ansible_check_mode
+      block:
+        - name: Shut the VM down cleanly
+          ansible.builtin.shell: |
+            if qm status {{ maintenance_vmid }} | grep -q running; then
+              qm shutdown {{ maintenance_vmid }} --timeout 300
+            fi
+          changed_when: true
+
+        - name: Reboot
+          ansible.builtin.reboot:
+            reboot_timeout: 900
+
+        # The VM is set to start on boot; this only covers the case where it did not.
+        - name: Make sure the VM is running again
+          ansible.builtin.shell: |
+            for i in $(seq 1 30); do
+              qm status {{ maintenance_vmid }} | grep -q running && exit 0
+              sleep 10
+            done
+            qm start {{ maintenance_vmid }}
+          changed_when: true
+
+- name: Check that everything came back
+  hosts: homelab
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Wait for the VM
+      ansible.builtin.wait_for_connection:
+        timeout: 900
+
+    - name: Read the VM uptime
+      ansible.builtin.command: cat /proc/uptime
+      register: maintenance_uptime
+      changed_when: false
+      check_mode: false
+
+    # Containers can come back without a network after a boot; up -d recreates them.
+    - name: Bring every compose project up again after a reboot
+      ansible.builtin.shell: |
+        set -eu
+        docker compose ls -a --format json | python3 -c '
+        import json, sys
+        for p in json.load(sys.stdin):
+            print(" ".join("-f " + f for f in p["ConfigFiles"].split(",")))
+        ' | while read -r files; do
+          # shellcheck disable=SC2086
+          docker compose $files up -d
+        done
+      args:
+        executable: /bin/bash
+      changed_when: true
+      when: maintenance_uptime.stdout.split()[0] | float < 1800 and not ansible_check_mode
+
+    - name: Wait for every container to be running and healthy
+      ansible.builtin.shell: >-
+        echo "$(docker ps -q | wc -l)
+        $(docker ps -q --filter health=unhealthy --filter health=starting | wc -l)"
+      register: maintenance_after
+      until: >-
+        maintenance_after.stdout.split()[0] | int >= maintenance_containers | int
+        and maintenance_after.stdout.split()[1] == '0'
+      retries: 60
+      delay: 10
+      changed_when: false
+      check_mode: false
+
+- name: Record the maintenance and clean up
+  hosts: all
+  gather_facts: false
+  tasks:
+    - name: Create the state directory
+      ansible.builtin.file:
+        path: /var/lib/maintenance
+        state: directory
+        mode: "0755"
+      become: "{{ inventory_hostname in groups['homelab'] }}"
+
+    - name: Remember when the last maintenance happened
+      ansible.builtin.file:
+        path: /var/lib/maintenance/last-run
+        state: touch
+        mode: "0644"
+        modification_time: now
+        access_time: now
+      become: "{{ inventory_hostname in groups['homelab'] }}"
+
+    - name: Delete the oldest maintenance snapshots, keeping the newest ones
+      ansible.builtin.shell: |
+        set -o pipefail
+        qm listsnapshot {{ maintenance_vmid }} | grep -o 'pre-maint-[0-9]*' | sort \
+          | head -n -{{ maintenance_keep_snapshots }} | while read -r s; do
+          qm delsnapshot {{ maintenance_vmid }} "$s" && echo "deleted $s"
+        done
+      args:
+        executable: /bin/bash
+      register: maintenance_prune
+      changed_when: "'deleted' in maintenance_prune.stdout"
+      when: inventory_hostname in groups['proxmox'] and not ansible_check_mode

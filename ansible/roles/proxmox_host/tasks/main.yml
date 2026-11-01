@@ -115,6 +115,32 @@
     mode: "0644"
   notify: Restart smartd
 
+# Debian security fixes only (the default origins); Proxmox packages and kernels are left to
+# the monthly maintenance window (ansible/maintenance.yml). Never reboots by itself.
+- name: Install unattended-upgrades
+  ansible.builtin.apt:
+    name: unattended-upgrades
+    state: present
+
+- name: Enable daily security updates
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      // Managed by Ansible
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+    mode: "0644"
+
+- name: Report unattended-upgrades only on errors
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/52unattended-upgrades-local
+    content: |
+      // Managed by Ansible
+      Unattended-Upgrade::Mail "root";
+      Unattended-Upgrade::MailReport "only-on-error";
+      Unattended-Upgrade::Automatic-Reboot "false";
+    mode: "0644"
+
 - name: Read BIOS "After Power Loss" setting
   ansible.builtin.slurp:
     src: /sys/class/firmware-attributes/thinklmi/attributes/After Power Loss/current_value

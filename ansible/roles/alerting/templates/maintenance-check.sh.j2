@@ -1,0 +1,47 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# Runs every morning. On the first Sunday of the month it mails a reminder that the
+# maintenance window is today; any other day it mails only if no maintenance was
+# recorded for too long. --test sends a test mail.
+set -euo pipefail
+
+stamp=/var/lib/maintenance/last-run
+max_age_days={{ alerting_maintenance_max_age_days }}
+host=$(hostname)
+
+if [ "${1:-}" = "--test" ]; then
+    echo "Test from maintenance-check on $host." | mail -s "[TEST] maintenance-check on $host" root
+    exit 0
+fi
+
+mkdir -p "$(dirname "$stamp")"
+# First run on a host: start the clock now instead of alerting at once.
+[ -f "$stamp" ] || touch "$stamp"
+
+pending=$(apt-get -s -o Debug::NoLocking=1 upgrade 2>/dev/null | grep '^Inst' || true)
+count=$(printf '%s' "$pending" | grep -c . || true)
+
+reboot_needed=no
+[ ! -e /var/run/reboot-required ] || reboot_needed=yes
+newest=$(ls /boot/vmlinuz-* 2>/dev/null | sort -V | tail -1 || true)
+if [ -n "$newest" ] && [ "$newest" != "/boot/vmlinuz-$(uname -r)" ]; then
+    reboot_needed=yes
+fi
+
+age_days=$(( ( $(date +%s) - $(stat -c %Y "$stamp") ) / 86400 ))
+
+summary=$(printf 'Host: %s\nLast maintenance: %s days ago\nPending updates: %s\nReboot needed: %s\n\n%s\n' \
+    "$host" "$age_days" "$count" "$reboot_needed" "$pending")
+
+{% if alerting_maintenance_reminder %}
+if [ "$(date +%u)" = 7 ] && [ "$(date +%-d)" -le 7 ]; then
+    printf 'Today is the monthly maintenance window.\n\nFrom the workstation:\n  cd ~/repos/homelab\n  ansible-playbook ansible/maintenance.yml --check --diff\n  ansible-playbook ansible/maintenance.yml            (add -e reboot_pve=true to reboot the hypervisor)\n\n%s\n' "$summary" \
+        | mail -s "[MAINTENANCE] window today on $host" root
+    exit 0
+fi
+{% endif %}
+
+if [ "$age_days" -gt "$max_age_days" ]; then
+    printf 'No maintenance recorded for more than %s days.\n\n%s\n' "$max_age_days" "$summary" \
+        | mail -s "[ALERT] maintenance overdue on $host" root
+fi
