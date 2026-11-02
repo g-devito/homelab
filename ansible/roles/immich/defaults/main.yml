@@ -1,5 +1,5 @@
 ---
 # Server and machine-learning must always run the same version.
 # renovate: datasource=docker depName=ghcr.io/immich-app/immich-server
-immich_version: v2.7.5
+immich_version: v3.3.5
 immich_dir: /opt/homelab/immich
