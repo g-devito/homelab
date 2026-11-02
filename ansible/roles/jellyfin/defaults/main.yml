@@ -1,5 +1,5 @@
 ---
-jellyfin_image: jellyfin/jellyfin:12.3
+jellyfin_image: jellyfin/jellyfin:12.4
 jellyfin_data_dir: /opt/homelab/jellyfin
 jellyfin_media_dir: "{{ media_mount_point | default('/mnt/media') }}"
 # LAN only (home use); not exposed through Traefik.
