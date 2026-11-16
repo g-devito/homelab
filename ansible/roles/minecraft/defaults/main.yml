@@ -5,7 +5,7 @@
 # an automatic update would break the world or the mods. Change it by hand
 # (VM snapshot first) when the mods you use support the new release.
 # renovate: datasource=docker depName=itzg/minecraft-server
-minecraft_image: itzg/minecraft-server:2026.10.1-java25
+minecraft_image: itzg/minecraft-server:2026.11.0-java25
 minecraft_version: "26.3"
 minecraft_dir: /opt/homelab/minecraft
 minecraft_port: 25565
